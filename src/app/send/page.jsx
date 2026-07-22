@@ -10,13 +10,18 @@ export default function SendPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const [history, setHistory] = useState([]);
 
   const load = useCallback(async () => {
-    const r = await fetch(`/api/recipients?category=${cat}&limit=200`).then((r) => r.json());
+    const [r, h] = await Promise.all([
+      fetch(`/api/recipients?category=${cat}&limit=200`).then((r) => r.json()),
+      fetch(`/api/campaigns?category=${cat}`).then((r) => r.json()),
+    ]);
     if (r.ok) {
       setItems(r.items);
       setCounts(r.counts);
     } else setErr(r.error);
+    if (h.ok) setHistory(h.days);
   }, [cat]);
 
   useEffect(() => {
@@ -100,6 +105,36 @@ export default function SendPage() {
           </tbody>
         </table>
       </div>
+
+      {/* 날짜별 발송 이력 */}
+      <h2 style={{ fontSize: 15, marginTop: 32 }}>📅 날짜별 발송 이력</h2>
+      {history.length === 0 ? (
+        <div className="card" style={{ marginTop: 8, color: 'var(--muted)' }}>아직 발송 이력이 없습니다.</div>
+      ) : (
+        history.map((day) => (
+          <div key={day.date} className="card" style={{ marginTop: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <strong>{day.date}</strong>
+              <span style={{ color: 'var(--muted)', fontSize: 13 }}>대상 {day.total} · 발송 {day.sent}</span>
+            </div>
+            <table>
+              <thead>
+                <tr><th style={{ width: 60 }}>시각</th><th style={{ width: 140 }}>카테고리</th><th>제목</th><th style={{ width: 100 }}>발송/대상</th></tr>
+              </thead>
+              <tbody>
+                {day.items.map((c) => (
+                  <tr key={c._id}>
+                    <td style={{ color: 'var(--muted)' }}>{c.time}</td>
+                    <td>{c.categoryLabel}</td>
+                    <td>{c.subject}</td>
+                    <td>{c.sentCount}/{c.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))
+      )}
     </div>
   );
 }
