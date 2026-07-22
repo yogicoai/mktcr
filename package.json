@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start -p 5600",
     "lint": "next lint",
-    "crawl:all": "node scripts/crawlAll.js"
+    "crawl:all": "node scripts/crawlAll.js",
+    "validate:all": "node scripts/validateAll.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
