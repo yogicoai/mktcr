@@ -17,12 +17,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * 카테고리 발송 리스트(recipients, sendStatus=ready)에 양식 발송.
- * body: { category, limit?=50, force?=false }
+ * body: { category, limit?=50, force?=false, ids?=[] }
+ *   ids 지정 시 해당 수신자만 발송(건별 선택 발송).
  * 정보통신망법: 제목 (광고) 표기, 본문 수신거부, 야간(21~08시) 차단.
  */
 export async function POST(req) {
   try {
-    const { category, limit = 50, force = false } = await req.json();
+    const { category, limit = 50, force = false, ids = [] } = await req.json();
     if (!category) throw new Error('category 필요');
 
     const night = isNightBlocked();
@@ -44,8 +45,12 @@ export async function POST(req) {
     const unsubCol = await collections.unsubscribes();
     const campCol = await collections.campaigns();
 
+    const q = { category, sendStatus: 'ready' };
+    if (Array.isArray(ids) && ids.length) {
+      q._id = { $in: ids.map((id) => new ObjectId(id)) };
+    }
     const targets = await recCol
-      .find({ category, sendStatus: 'ready' })
+      .find(q)
       .limit(Math.min(limit, 200))
       .toArray();
 
