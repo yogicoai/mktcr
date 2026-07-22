@@ -1,0 +1,35 @@
+import { NextResponse } from 'next/server';
+import { collections } from '@/lib/db';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const q = {};
+    const category = searchParams.get('category');
+    const sendStatus = searchParams.get('sendStatus');
+    if (category) q.category = category;
+    if (sendStatus) q.sendStatus = sendStatus;
+    const limit = Math.min(Number(searchParams.get('limit')) || 200, 500);
+
+    const recCol = await collections.recipients();
+    const items = await recCol.find(q).sort({ createdAt: -1 }).limit(limit).toArray();
+
+    // 상태별 카운트
+    const counts = await recCol
+      .aggregate([
+        ...(category ? [{ $match: { category } }] : []),
+        { $group: { _id: '$sendStatus', n: { $sum: 1 } } },
+      ])
+      .toArray();
+
+    return NextResponse.json({
+      ok: true,
+      items: items.map((r) => ({ ...r, _id: String(r._id) })),
+      counts: counts.reduce((a, c) => ({ ...a, [c._id]: c.n }), {}),
+    });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 500 });
+  }
+}

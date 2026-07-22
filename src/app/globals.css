@@ -64,6 +64,8 @@ a { color: inherit; text-decoration: none; }
 .badge.pending { background: #3a3320; color: var(--warn); }
 .badge.valid, .badge.approved, .badge.sent { background: #163a2c; color: var(--good); }
 .badge.invalid, .badge.rejected, .badge.failed { background: #3a1e1e; color: var(--bad); }
+.badge.ready { background: #1e2a3a; color: var(--accent); }
+.badge.unsubscribed { background: #2a2f3a; color: var(--muted); }
 
 table { width: 100%; border-collapse: collapse; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
