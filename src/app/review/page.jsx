@@ -1,8 +1,147 @@
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import { CATEGORIES } from '@/lib/categories';
+
 export default function ReviewPage() {
+  const [cat, setCat] = useState(CATEGORIES[0].key);
+  const [aiFilter, setAiFilter] = useState('valid'); // pending|valid|invalid|all
+  const [leads, setLeads] = useState([]);
+  const [sel, setSel] = useState(new Set());
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState('');
+  const [msg, setMsg] = useState('');
+
+  const load = useCallback(async () => {
+    const q = new URLSearchParams({ category: cat, status: 'pending', limit: '200' });
+    if (aiFilter !== 'all') q.set('aiStatus', aiFilter);
+    const r = await fetch(`/api/leads?${q}`).then((r) => r.json());
+    if (r.ok) {
+      setLeads(r.items);
+      setSel(new Set());
+    } else setErr(r.error);
+  }, [cat, aiFilter]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function runAI() {
+    setBusy('ai');
+    setErr('');
+    setMsg('');
+    try {
+      const r = await fetch('/api/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: cat, limit: 50 }),
+      }).then((r) => r.json());
+      if (r.ok) {
+        setMsg(`AI 검증 완료: ${r.validated}건 (적합 ${r.valid} / 부적합 ${r.invalid})`);
+        load();
+      } else setErr(r.error);
+    } finally {
+      setBusy('');
+    }
+  }
+
+  async function review(action) {
+    const ids = [...sel];
+    if (!ids.length) return;
+    setBusy(action);
+    setErr('');
+    try {
+      const r = await fetch('/api/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, action }),
+      }).then((r) => r.json());
+      if (r.ok) {
+        setMsg(action === 'approve' ? `승인 ${r.approved}건 · 발송리스트 이관 ${r.moved}건` : `반려 ${r.rejected}건`);
+        load();
+      } else setErr(r.error);
+    } finally {
+      setBusy('');
+    }
+  }
+
+  function toggle(id) {
+    const next = new Set(sel);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSel(next);
+  }
+  function toggleAll() {
+    if (sel.size === leads.length) setSel(new Set());
+    else setSel(new Set(leads.map((l) => l._id)));
+  }
+
   return (
     <div>
       <h1 className="page-title">1차 검토 (AI)</h1>
-      <p className="page-sub">Phase 2~3에서 구현: AI 1차 검증 결과 검토 + 관리자 승인/반려.</p>
+      <p className="page-sub">AI 1차 검증 결과를 관리자가 확인해 승인하면 발송 리스트(2차 DB)로 이관됩니다.</p>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+        {CATEGORIES.map((c) => (
+          <button key={c.key} className={`btn ${c.key === cat ? '' : 'secondary'}`} onClick={() => setCat(c.key)}>
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        <button className="btn" onClick={runAI} disabled={!!busy}>
+          {busy === 'ai' ? 'AI 검증 중…' : 'AI 1차 검증 실행 (미검증 50건)'}
+        </button>
+        <span style={{ color: 'var(--muted)' }}>필터:</span>
+        {['pending', 'valid', 'invalid', 'all'].map((f) => (
+          <button key={f} className={`btn secondary ${aiFilter === f ? '' : ''}`} style={{ opacity: aiFilter === f ? 1 : 0.5 }} onClick={() => setAiFilter(f)}>
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {err && <div className="card" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 12 }}>{err}</div>}
+      {msg && <div className="card" style={{ borderColor: 'var(--good)', color: 'var(--good)', marginBottom: 12 }}>{msg}</div>}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button className="btn" onClick={() => review('approve')} disabled={!sel.size || !!busy}>
+          선택 승인 → 발송리스트 ({sel.size})
+        </button>
+        <button className="btn secondary" onClick={() => review('reject')} disabled={!sel.size || !!busy}>
+          선택 반려
+        </button>
+      </div>
+
+      <div className="card">
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: 32 }}>
+                <input type="checkbox" checked={leads.length > 0 && sel.size === leads.length} onChange={toggleAll} />
+              </th>
+              <th>업체</th>
+              <th>이메일</th>
+              <th style={{ width: 60 }}>AI</th>
+              <th style={{ width: 60 }}>점수</th>
+              <th>판정 근거</th>
+            </tr>
+          </thead>
+          <tbody>
+            {leads.map((l) => (
+              <tr key={l._id} style={{ opacity: l.aiStatus === 'invalid' ? 0.55 : 1 }}>
+                <td><input type="checkbox" checked={sel.has(l._id)} onChange={() => toggle(l._id)} /></td>
+                <td>{l.companyName || '-'}</td>
+                <td>{l.email}</td>
+                <td><span className={`badge ${l.aiStatus}`}>{l.aiStatus}</span></td>
+                <td>{l.aiScore ?? '-'}</td>
+                <td style={{ color: 'var(--muted)', fontSize: 12 }}>{l.aiReason || '-'}</td>
+              </tr>
+            ))}
+            {leads.length === 0 && (
+              <tr><td colSpan={6} style={{ color: 'var(--muted)' }}>해당 조건의 리드가 없습니다.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
