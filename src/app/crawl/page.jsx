@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { CATEGORIES } from '@/lib/categories';
+import { aiLabel, statusLabel } from '@/lib/labels';
 
 export default function CrawlPage() {
   const [cat, setCat] = useState(CATEGORIES[0].key);
@@ -179,8 +180,8 @@ export default function CrawlPage() {
                 <td>{l.companyName || '-'}</td>
                 <td>{l.email}</td>
                 <td>{l.keyword}</td>
-                <td><span className={`badge ${l.aiStatus}`}>{l.aiStatus}</span></td>
-                <td><span className={`badge ${l.status}`}>{l.status}</span></td>
+                <td><span className={`badge ${l.aiStatus}`}>{aiLabel(l.aiStatus)}</span></td>
+                <td><span className={`badge ${l.status}`}>{statusLabel(l.status)}</span></td>
               </tr>
             ))}
             {leads.length === 0 && (

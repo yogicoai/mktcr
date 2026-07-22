@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { CATEGORIES } from '@/lib/categories';
+import { aiLabel } from '@/lib/labels';
+
+const AI_FILTER_LABELS = { pending: '검증 대기', valid: '적합', invalid: '부적합', all: '전체' };
 
 export default function ReviewPage() {
   const [cat, setCat] = useState(CATEGORIES[0].key);
@@ -93,8 +96,8 @@ export default function ReviewPage() {
         </button>
         <span style={{ color: 'var(--muted)' }}>필터:</span>
         {['pending', 'valid', 'invalid', 'all'].map((f) => (
-          <button key={f} className={`btn secondary ${aiFilter === f ? '' : ''}`} style={{ opacity: aiFilter === f ? 1 : 0.5 }} onClick={() => setAiFilter(f)}>
-            {f}
+          <button key={f} className="btn secondary" style={{ opacity: aiFilter === f ? 1 : 0.5 }} onClick={() => setAiFilter(f)}>
+            {AI_FILTER_LABELS[f]}
           </button>
         ))}
       </div>
@@ -131,7 +134,7 @@ export default function ReviewPage() {
                 <td><input type="checkbox" checked={sel.has(l._id)} onChange={() => toggle(l._id)} /></td>
                 <td>{l.companyName || '-'}</td>
                 <td>{l.email}</td>
-                <td><span className={`badge ${l.aiStatus}`}>{l.aiStatus}</span></td>
+                <td><span className={`badge ${l.aiStatus}`}>{aiLabel(l.aiStatus)}</span></td>
                 <td>{l.aiScore ?? '-'}</td>
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{l.aiReason || '-'}</td>
               </tr>

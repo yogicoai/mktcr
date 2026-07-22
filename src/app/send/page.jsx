@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { CATEGORIES } from '@/lib/categories';
+import { sendLabel } from '@/lib/labels';
 
 export default function SendPage() {
   const [cat, setCat] = useState(CATEGORIES[0].key);
@@ -97,7 +98,7 @@ export default function SendPage() {
               <tr key={r._id}>
                 <td>{r.companyName || '-'}</td>
                 <td>{r.email}</td>
-                <td><span className={`badge ${r.sendStatus}`}>{r.sendStatus}</span></td>
+                <td><span className={`badge ${r.sendStatus}`}>{sendLabel(r.sendStatus)}</span></td>
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{r.sentAt ? new Date(r.sentAt).toLocaleString('ko-KR') : '-'}</td>
               </tr>
             ))}

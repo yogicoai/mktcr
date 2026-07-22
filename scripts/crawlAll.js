@@ -65,8 +65,12 @@ async function naverLocal(query) {
 async function scrape(page){return page.evaluate(()=>{const em=new Set();document.querySelectorAll('a[href^="mailto:"]').forEach(a=>{const x=(a.getAttribute('href')||'').replace(/^mailto:/i,'').split('?')[0].trim();if(x)em.add(x);});const links=[];document.querySelectorAll('a[href]').forEach(a=>links.push({href:a.href,text:(a.textContent||'').trim()}));return {mailto:[...em],text:document.body?document.body.innerText:'',html:document.documentElement?document.documentElement.outerHTML:'',links};});}
 async function load(ctx,url){const pg=await ctx.newPage();try{await pg.goto(url,{waitUntil:'domcontentloaded',timeout:12000});await pg.waitForTimeout(1200);return await scrape(pg);}catch{return null;}finally{await pg.close().catch(()=>{});}}
 function collect(d){const s=new Set();(d.mailto||[]).forEach(e=>extract(e).forEach(x=>s.add(x)));extract(d.text||'').forEach(e=>s.add(e));extract(d.html||'').forEach(e=>s.add(e));return[...s];}
+function withTimeout(promise, ms, fallback){
+  return Promise.race([promise, new Promise((res)=>setTimeout(()=>res(fallback), ms))]);
+}
 async function crawlHome(browser, cand){
   const ctx=await browser.newContext({ignoreHTTPSErrors:true});
+  ctx.setDefaultTimeout(12000); ctx.setDefaultNavigationTimeout(12000);
   try{
     const main=await load(ctx,cand.url); if(!main) return [];
     let emails=collect(main);
@@ -115,31 +119,29 @@ async function pool(items, size, fn){let i=0;const out=[];const w=Array.from({le
   }
   console.log(`\n총 발굴 후보(중복호스트 제거): ${candidates.length}\n크롤링 시작...\n`);
 
-  // 2) Playwright 이메일 추출 + 적재
+  // 2) Playwright 이메일 추출 + 실시간 적재 (사이트별 강제 타임아웃 25s)
   const browser = await chromium.launch({ headless: true, args: ['--no-sandbox', '--disable-dev-shm-usage'] });
-  const now = new Date();
   const stat = {}; let done = 0;
-  const emailsList = await pool(candidates, 6, async (c) => {
-    const emails = await crawlHome(browser, c);
-    done++;
-    if (done % 20 === 0) process.stdout.write(`  ...${done}/${candidates.length}\n`);
-    return { c, emails };
-  });
-  await browser.close();
-
-  for (const { c, emails } of emailsList) {
+  await pool(candidates, 6, async (c) => {
+    const now = new Date();
+    const emails = await withTimeout(crawlHome(browser, c), 25000, []); // 한 사이트가 25s 넘으면 포기
     stat[c.category] = stat[c.category] || { firms: 0, withEmail: 0, inserted: 0 };
     stat[c.category].firms++;
     if (emails.length) stat[c.category].withEmail++;
     for (const email of emails) {
-      const r = await col.updateOne({ email: email.toLowerCase() }, { $setOnInsert: {
-        email: email.toLowerCase(), category: c.category, keyword: c.keyword, companyName: c.companyName,
-        url: c.url, source: 'crawlAll', tel: c.tel, address: c.address, naverCategory: c.naverCategory,
-        aiStatus: 'pending', aiScore: null, aiReason: '', status: 'pending', createdAt: now, updatedAt: now,
-      } }, { upsert: true });
-      if (r.upsertedCount) stat[c.category].inserted++;
+      try {
+        const r = await col.updateOne({ email: email.toLowerCase() }, { $setOnInsert: {
+          email: email.toLowerCase(), category: c.category, keyword: c.keyword, companyName: c.companyName,
+          url: c.url, source: 'crawlAll', tel: c.tel, address: c.address, naverCategory: c.naverCategory,
+          aiStatus: 'pending', aiScore: null, aiReason: '', status: 'pending', createdAt: now, updatedAt: now,
+        } }, { upsert: true });
+        if (r.upsertedCount) stat[c.category].inserted++;
+      } catch { /* 적재 실패 무시 */ }
     }
-  }
+    done++;
+    if (done % 20 === 0) process.stdout.write(`  ...${done}/${candidates.length} (적재 ${Object.values(stat).reduce((a,s)=>a+s.inserted,0)})\n`);
+  });
+  await browser.close();
 
   console.log('\n=== 완료 ===');
   for (const [k, s] of Object.entries(stat)) console.log(k.padEnd(8), `업체 ${s.firms} · 이메일보유 ${s.withEmail} · 신규적재 ${s.inserted}`);
