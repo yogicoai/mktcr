@@ -1,32 +1,16 @@
-// 홈페이지 크롤링 — 메인 + 연락처류 서브페이지에서 이메일 추출.
-import * as cheerio from 'cheerio';
+// 홈페이지 크롤링 — Playwright 헤드리스로 SPA 렌더 후 이메일 추출.
+// 메인 렌더 → mailto·본문·HTML에서 추출 → 없으면 연락처/개인정보류 서브페이지 순회.
+import { getBrowser } from './browser';
 import { extractEmails } from './extractEmail';
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
-// 연락처 정보가 있을 법한 서브페이지 힌트
-const CONTACT_HINTS = ['contact', 'about', 'company', '문의', '연락', '오시는', 'inquiry', 'support', 'cs'];
-
-async function fetchHtml(url, timeoutMs = 8000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'text/html' },
-      signal: ctrl.signal,
-      redirect: 'follow',
-    });
-    if (!res.ok) return null;
-    const ctype = res.headers.get('content-type') || '';
-    if (!ctype.includes('text/html')) return null;
-    return await res.text();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
-}
+// 연락처/기관정보가 있을 법한 서브페이지 힌트
+const CONTACT_HINTS = [
+  'contact', 'about', 'company', 'privacy', 'introduction', 'intro', 'org',
+  '문의', '연락', '오시', '개인정보', '기관', '소개', '이용약관', 'sitemap',
+];
 
 function normalizeUrl(url) {
   try {
@@ -38,71 +22,92 @@ function normalizeUrl(url) {
   }
 }
 
-function emailsFromHtml(html) {
-  const $ = cheerio.load(html);
-  const emails = new Set();
-  // mailto: 링크 우선 (가장 신뢰도 높음)
-  $('a[href^="mailto:"]').each((_, el) => {
-    const href = $(el).attr('href') || '';
-    const addr = href.replace(/^mailto:/i, '').split('?')[0].trim();
-    extractEmails(addr).forEach((e) => emails.add(e));
+// 렌더된 페이지에서 이메일 + 후보 서브링크 수집
+async function scrapePage(page) {
+  return page.evaluate(() => {
+    const emails = new Set();
+    // mailto 링크 (신뢰도 최상)
+    document.querySelectorAll('a[href^="mailto:"]').forEach((a) => {
+      const addr = (a.getAttribute('href') || '').replace(/^mailto:/i, '').split('?')[0].trim();
+      if (addr) emails.add(addr);
+    });
+    const bodyText = document.body ? document.body.innerText : '';
+    const html = document.documentElement ? document.documentElement.outerHTML : '';
+    // 서브페이지 후보 링크 (같은 호스트)
+    const links = [];
+    document.querySelectorAll('a[href]').forEach((a) => {
+      links.push({ href: a.href, text: (a.textContent || '').trim().slice(0, 40) });
+    });
+    return { mailto: [...emails], bodyText, html, links };
   });
-  // 본문 텍스트에서 추출
-  extractEmails($('body').text()).forEach((e) => emails.add(e));
-  // 원본 HTML(스크립트 내 노출 등)에서도 보조 추출
-  extractEmails(html).forEach((e) => emails.add(e));
-  return { emails: [...emails], $ };
 }
 
-function findContactLinks($, baseUrl, max = 3) {
+async function loadAndScrape(context, url, timeoutMs = 15000) {
+  const page = await context.newPage();
+  try {
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    // JS 렌더 여유
+    await page.waitForTimeout(1200);
+    const data = await scrapePage(page);
+    return data;
+  } catch {
+    return null;
+  } finally {
+    await page.close().catch(() => {});
+  }
+}
+
+function pickContactLinks(links, baseUrl, max = 3) {
   const base = normalizeUrl(baseUrl);
   if (!base) return [];
   const out = new Set();
-  $('a[href]').each((_, el) => {
-    if (out.size >= max) return;
-    const href = $(el).attr('href') || '';
-    const text = ($(el).text() || '').toLowerCase();
-    const hay = (href + ' ' + text).toLowerCase();
-    if (!CONTACT_HINTS.some((h) => hay.includes(h))) return;
-    try {
-      const abs = new URL(href, base);
-      if (abs.hostname === base.hostname && /^https?:$/.test(abs.protocol)) {
-        out.add(abs.toString());
-      }
-    } catch {
-      /* ignore */
-    }
-  });
+  for (const { href, text } of links) {
+    if (out.size >= max) break;
+    const hay = ((href || '') + ' ' + (text || '')).toLowerCase();
+    if (!CONTACT_HINTS.some((h) => hay.includes(h))) continue;
+    const u = normalizeUrl(href);
+    if (u && u.hostname === base.hostname) out.add(u.toString());
+  }
   return [...out];
 }
 
+function collectEmails(data) {
+  const found = new Set();
+  (data.mailto || []).forEach((e) => extractEmails(e).forEach((x) => found.add(x)));
+  extractEmails(data.bodyText || '').forEach((e) => found.add(e));
+  extractEmails(data.html || '').forEach((e) => found.add(e));
+  return [...found];
+}
+
 /**
- * 홈페이지에서 이메일 수집. 메인 → 연락처류 서브페이지 최대 N개.
+ * 홈페이지에서 이메일 수집(SPA 대응). 메인 → 없으면 연락처류 서브페이지 최대 N개.
  * @returns {Promise<{emails: string[], visited: number}>}
  */
-export async function crawlHomepage(url, { maxSubpages = 2 } = {}) {
+export async function crawlHomepage(url, { maxSubpages = 3 } = {}) {
   const u = normalizeUrl(url);
   if (!u) return { emails: [], visited: 0 };
 
-  const html = await fetchHtml(u.toString());
-  if (!html) return { emails: [], visited: 0 };
+  const browser = await getBrowser();
+  const context = await browser.newContext({ userAgent: UA, ignoreHTTPSErrors: true });
+  let visited = 0;
+  try {
+    const main = await loadAndScrape(context, u.toString());
+    if (!main) return { emails: [], visited: 0 };
+    visited = 1;
 
-  const { emails: mainEmails, $ } = emailsFromHtml(html);
-  const collected = new Set(mainEmails);
-  let visited = 1;
+    const emails = new Set(collectEmails(main));
 
-  // 메인에서 못 찾았을 때만 서브페이지 탐색(비용 절약)
-  if (collected.size === 0 && maxSubpages > 0) {
-    const links = findContactLinks($, u.toString(), maxSubpages);
-    for (const link of links) {
-      const subHtml = await fetchHtml(link);
-      visited++;
-      if (subHtml) {
-        emailsFromHtml(subHtml).emails.forEach((e) => collected.add(e));
+    if (emails.size === 0 && maxSubpages > 0) {
+      const links = pickContactLinks(main.links || [], u.toString(), maxSubpages);
+      for (const link of links) {
+        const sub = await loadAndScrape(context, link);
+        visited++;
+        if (sub) collectEmails(sub).forEach((e) => emails.add(e));
+        if (emails.size > 0) break;
       }
-      if (collected.size > 0) break;
     }
+    return { emails: [...emails], visited };
+  } finally {
+    await context.close().catch(() => {});
   }
-
-  return { emails: [...collected], visited };
 }
