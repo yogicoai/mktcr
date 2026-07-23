@@ -5,7 +5,7 @@ import { CATEGORIES } from '@/lib/categories';
 export default function TestSendPage() {
   const [cat, setCat] = useState(CATEGORIES[0].key);
   const [tpls, setTpls] = useState({});
-  const [to, setTo] = useState('leshwann@naver.com');
+  const [to, setTo] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
