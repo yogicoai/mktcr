@@ -58,15 +58,10 @@ export default function SettingsPage() {
       {err && <div className="card" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 12 }}>{err}</div>}
       {msg && <div className="card" style={{ borderColor: 'var(--good)', color: 'var(--good)', marginBottom: 12 }}>{msg}</div>}
 
-      <Section title="SMTP (메일 서버)">
-        <Field label="SMTP 호스트"><input style={inp} value={f.smtpHost} onChange={set('smtpHost')} placeholder="wsmtp.ecount.com" /></Field>
-        <div style={{ display: 'flex', gap: 12 }}>
-          <Field label="포트" flex={1}><input style={inp} type="number" value={f.smtpPort} onChange={set('smtpPort')} /></Field>
-          <Field label="SSL(보안)" flex={1}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38 }}>
-              <input type="checkbox" checked={f.smtpSecure} onChange={set('smtpSecure')} /> 사용
-            </label>
-          </Field>
+      <Section title="메일 계정 (마케터는 이것만 입력하면 됩니다)">
+        <div style={{ background: 'rgba(91,140,255,.1)', border: '1px solid var(--border-2)', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: 'var(--muted)', marginBottom: 4 }}>
+          메일 서버는 <b style={{ color: 'var(--text)' }}>{f.smtpHost}</b> 로 자동 설정됩니다. <b style={{ color: 'var(--text)' }}>아이디·비밀번호만</b> 입력하세요.
+          발신 주소는 입력한 아이디로 자동 발송됩니다.
         </div>
         <Field label={`아이디(계정)  ${hasUser ? '· 현재: 설정됨 ✅' : '· 미설정'}`}>
           <input style={inp} value={f.smtpUser} onChange={set('smtpUser')} placeholder={hasUser ? '변경 시에만 입력' : '메일 계정 아이디'} autoComplete="off" />
@@ -76,9 +71,21 @@ export default function SettingsPage() {
         </Field>
       </Section>
 
-      <Section title="발신자 표시">
+      <Section title="발신자 표시 (선택 · 미입력 시 자동)">
         <Field label="발신자 이름"><input style={inp} value={f.mailFromName} onChange={set('mailFromName')} placeholder="요기보 마케팅" /></Field>
-        <Field label="발신 이메일 주소"><input style={inp} value={f.mailFromAddress} onChange={set('mailFromAddress')} placeholder="marketing@yogibo.co.kr" /></Field>
+        <Field label="발신 이메일 주소 (미입력 시 아이디로 발송)"><input style={inp} value={f.mailFromAddress} onChange={set('mailFromAddress')} placeholder="아이디 계정으로 자동 발송" /></Field>
+        <details>
+          <summary style={{ cursor: 'pointer', color: 'var(--muted)', fontSize: 13 }}>고급: 서버 포트·보안 설정</summary>
+          <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+            <Field label="SMTP 호스트" flex={2}><input style={inp} value={f.smtpHost} onChange={set('smtpHost')} placeholder="wsmtp.ecount.com" /></Field>
+            <Field label="포트" flex={1}><input style={inp} type="number" value={f.smtpPort} onChange={set('smtpPort')} /></Field>
+            <Field label="SSL" flex={1}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38 }}>
+                <input type="checkbox" checked={f.smtpSecure} onChange={set('smtpSecure')} /> 사용
+              </label>
+            </Field>
+          </div>
+        </details>
       </Section>
 
       <Section title="회사 정보 (법규 준수 — 메일 하단 자동 표기)">
