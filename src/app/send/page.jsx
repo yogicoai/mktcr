@@ -14,11 +14,15 @@ export default function SendPage() {
   const [sel, setSel] = useState(new Set());
   const [testEmail, setTestEmail] = useState('');
   const [testMsg, setTestMsg] = useState('');
+  const [useAd, setUseAd] = useState(true);
+  const [schedules, setSchedules] = useState([]);
+  const [sform, setSform] = useState({ label: '', type: 'once', runAtKst: '', timeHM: '09:00', weekdays: [1, 2, 3, 4, 5], force: false });
 
   const load = useCallback(async () => {
-    const [r, h] = await Promise.all([
+    const [r, h, sc] = await Promise.all([
       fetch(`/api/recipients?category=${cat}&limit=200`).then((r) => r.json()),
       fetch(`/api/campaigns?category=${cat}`).then((r) => r.json()),
+      fetch(`/api/schedules`).then((r) => r.json()),
     ]);
     if (r.ok) {
       setItems(r.items);
@@ -26,11 +30,37 @@ export default function SendPage() {
       setSel(new Set());
     } else setErr(r.error);
     if (h.ok) setHistory(h.days);
+    if (sc.ok) setSchedules(sc.items);
   }, [cat]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    fetch('/api/settings').then((r) => r.json()).then((r) => { if (r.ok) setUseAd(r.settings.useAdPrefix !== false); });
+  }, []);
+
+  async function toggleAd(next) {
+    setUseAd(next);
+    await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ useAdPrefix: next }) });
+  }
+
+  async function createSchedule() {
+    setErr(''); setMsg('');
+    const body = { ...sform, category: cat };
+    const r = await fetch('/api/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+    if (r.ok) { setMsg('예약이 등록되었습니다.'); setSform({ ...sform, label: '' }); load(); }
+    else setErr(r.error);
+  }
+  async function toggleSchedule(id, enabled) {
+    await fetch('/api/schedules', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, enabled }) });
+    load();
+  }
+  async function deleteSchedule(id) {
+    await fetch(`/api/schedules?id=${id}`, { method: 'DELETE' });
+    load();
+  }
 
   // 발송 대기(ready)인 행만 선택 대상
   const readyItems = items.filter((r) => r.sendStatus === 'ready');
@@ -140,6 +170,20 @@ export default function SendPage() {
       {err && <div className="card" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 12 }}>{err}</div>}
       {msg && <div className="card" style={{ borderColor: 'var(--good)', color: 'var(--good)', marginBottom: 12 }}>{msg}</div>}
 
+      {/* (광고) 표기 토글 — 마케터 직접 관리 */}
+      <div className="card" style={{ marginBottom: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+          <input type="checkbox" checked={useAd} onChange={(e) => toggleAd(e.target.checked)} style={{ marginTop: 3 }} />
+          <span>
+            <span style={{ fontWeight: 600 }}>제목에 <b>(광고)</b> 표기</span>
+            <span style={{ marginLeft: 8, fontSize: 12, color: useAd ? 'var(--good)' : 'var(--bad)' }}>{useAd ? 'ON (준수)' : 'OFF'}</span>
+            <div style={{ color: 'var(--warn)', fontSize: 12, marginTop: 4, lineHeight: 1.6 }}>
+              ⚠ 정보통신망법상 광고성 메일은 <b>(광고) 표기가 의무</b>입니다. 끄면 법 위반(과태료) 소지가 있으니 회사 책임하에 결정하세요. (모든 발송·테스트에 즉시 반영)
+            </div>
+          </span>
+        </label>
+      </div>
+
       {/* 액션 바 */}
       <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn" onClick={() => send([...sel])} disabled={busy || !sel.size}>
@@ -186,6 +230,92 @@ export default function SendPage() {
         </table>
       </div>
 
+      {/* 예약 / 주기 발송 */}
+      <h2 style={{ fontSize: 15, marginTop: 32 }}>⏰ 예약 · 주기 발송</h2>
+      <div className="card" style={{ marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label>
+            <div className="kpi-label" style={{ marginBottom: 4 }}>이름(메모)</div>
+            <input value={sform.label} onChange={(e) => setSform({ ...sform, label: e.target.value })} placeholder="예: 리조트 주간발송" style={sInp} />
+          </label>
+          <label>
+            <div className="kpi-label" style={{ marginBottom: 4 }}>유형</div>
+            <select value={sform.type} onChange={(e) => setSform({ ...sform, type: e.target.value })} style={sInp}>
+              <option value="once">1회 예약</option>
+              <option value="daily">매일</option>
+              <option value="weekly">매주</option>
+            </select>
+          </label>
+          {sform.type === 'once' ? (
+            <label>
+              <div className="kpi-label" style={{ marginBottom: 4 }}>예약 일시</div>
+              <input type="datetime-local" value={sform.runAtKst} onChange={(e) => setSform({ ...sform, runAtKst: e.target.value })} style={sInp} />
+            </label>
+          ) : (
+            <label>
+              <div className="kpi-label" style={{ marginBottom: 4 }}>발송 시각</div>
+              <input type="time" value={sform.timeHM} onChange={(e) => setSform({ ...sform, timeHM: e.target.value })} style={sInp} />
+            </label>
+          )}
+          <button className="btn" onClick={createSchedule}>예약 추가</button>
+        </div>
+
+        {sform.type === 'weekly' && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => {
+              const on = sform.weekdays.includes(i);
+              return (
+                <button key={i} className={`btn ${on ? '' : 'secondary'}`} style={{ padding: '6px 10px' }}
+                  onClick={() => setSform({ ...sform, weekdays: on ? sform.weekdays.filter((x) => x !== i) : [...sform.weekdays, i] })}>
+                  {d}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
+          <input type="checkbox" checked={sform.force} onChange={(e) => setSform({ ...sform, force: e.target.checked })} />
+          야간(21~08시)에도 발송 (야간차단 무시)
+        </label>
+        <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
+          현재 카테고리(<b>{CATEGORIES.find((c) => c.key === cat)?.label}</b>)의 <b>발송 대기 전체</b>가 지정 시각에 자동 발송됩니다. (예약 실행에는 스케줄러 <code>npm run scheduler</code>가 떠 있어야 함)
+        </div>
+      </div>
+
+      {/* 예약 목록 */}
+      {schedules.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <table>
+            <thead>
+              <tr><th>이름</th><th>카테고리</th><th>유형</th><th>시각</th><th>상태</th><th>마지막 실행</th><th style={{ width: 120 }}></th></tr>
+            </thead>
+            <tbody>
+              {schedules.map((s) => (
+                <tr key={s._id}>
+                  <td>{s.label || '-'}</td>
+                  <td>{CATEGORIES.find((c) => c.key === s.category)?.label || s.category}</td>
+                  <td>{{ once: '1회', daily: '매일', weekly: '매주' }[s.type]}{s.type === 'weekly' ? ` (${s.weekdays.map((i) => '일월화수목금토'[i]).join('')})` : ''}</td>
+                  <td>{s.type === 'once' ? (s.runAtKst || '').replace('T', ' ') : s.timeHM}{s.force ? ' ⚡' : ''}</td>
+                  <td><span className={`badge ${s.done ? 'sent' : s.enabled ? 'ready' : 'unsubscribed'}`}>{s.done ? '완료' : s.enabled ? '활성' : '중지'}</span></td>
+                  <td style={{ color: 'var(--muted)', fontSize: 12 }}>
+                    {s.lastRunAt ? new Date(s.lastRunAt).toLocaleString('ko-KR') : '-'}
+                    {s.lastResult && s.lastResult.ok ? ` · 성공 ${s.lastResult.sent}` : s.lastResult && !s.lastResult.ok ? ` · ${s.lastResult.error?.slice(0, 20)}` : ''}
+                  </td>
+                  <td>
+                    {!s.done && (
+                      <button className="btn secondary" style={{ padding: '5px 9px', fontSize: 12 }} onClick={() => toggleSchedule(s._id, !s.enabled)}>
+                        {s.enabled ? '중지' : '재개'}
+                      </button>
+                    )}
+                    <button className="btn secondary" style={{ padding: '5px 9px', fontSize: 12, marginLeft: 4 }} onClick={() => deleteSchedule(s._id)}>삭제</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* 날짜별 발송 이력 */}
       <h2 style={{ fontSize: 15, marginTop: 32 }}>📅 날짜별 발송 이력</h2>
       {history.length === 0 ? (
@@ -218,6 +348,11 @@ export default function SendPage() {
     </div>
   );
 }
+
+const sInp = {
+  padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)',
+  background: 'var(--panel-2)', color: 'var(--text)', fontFamily: 'inherit',
+};
 
 function Mini({ label, v }) {
   return (

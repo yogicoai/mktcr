@@ -36,4 +36,5 @@ export const collections = {
   campaigns: () => getDb().then((db) => db.collection('campaigns')),
   unsubscribes: () => getDb().then((db) => db.collection('unsubscribes')),
   keywords: () => getDb().then((db) => db.collection('keywords')),
+  schedules: () => getDb().then((db) => db.collection('schedules')),
 };
