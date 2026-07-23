@@ -139,6 +139,16 @@ export default function SendPage() {
 
   const ready = counts.ready || 0;
 
+  // 예약 요약 문장
+  const targetTxt = schedTarget === 'selected' ? `체크한 ${sel.size}개 업체` : '발송 대기 전체';
+  const wdTxt = sform.type === 'weekly' ? `(${[...sform.weekdays].sort((a, b) => a - b).map((i) => '일월화수목금토'[i]).join('·')})` : '';
+  const whenTxt = sform.type === 'once'
+    ? (sform.runAtKst ? sform.runAtKst.replace('T', ' ') + '에' : '(일시를 정하세요)')
+    : sform.type === 'daily'
+      ? `매일 ${sform.timeHM}, ${sform.startDate}부터`
+      : `매주${wdTxt} ${sform.timeHM}, ${sform.startDate}부터`;
+  const schedSummary = `${targetTxt}에 ${whenTxt} 발송합니다.${sform.force ? ' (야간 포함)' : ''}`;
+
   return (
     <div>
       <h1 className="page-title">발송 리스트 (2차 DB)</h1>
@@ -254,69 +264,70 @@ export default function SendPage() {
         </table>
       </div>
 
-      {/* 예약 / 주기 발송 */}
+      {/* 예약 / 주기 발송 — 문장형 */}
       <h2 style={{ fontSize: 15, marginTop: 32 }}>⏰ 예약 · 주기 발송</h2>
       <div className="card" style={{ marginTop: 8 }}>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <label>
-            <div className="kpi-label" style={{ marginBottom: 4 }}>이름(메모)</div>
-            <input value={sform.label} onChange={(e) => setSform({ ...sform, label: e.target.value })} placeholder="예: 리조트 주간발송" style={sInp} />
-          </label>
-          <label>
-            <div className="kpi-label" style={{ marginBottom: 4 }}>유형</div>
-            <select value={sform.type} onChange={(e) => setSform({ ...sform, type: e.target.value })} style={sInp}>
-              <option value="once">1회 예약</option>
-              <option value="daily">매일</option>
-              <option value="weekly">매주</option>
-            </select>
-          </label>
-          <label>
-            <div className="kpi-label" style={{ marginBottom: 4 }}>발송 대상</div>
-            <select value={schedTarget} onChange={(e) => setSchedTarget(e.target.value)} style={sInp}>
-              <option value="all">발송 대기 전체</option>
-              <option value="selected">선택 업체만 ({sel.size})</option>
-            </select>
-          </label>
+        {/* 자연어 문장 조립 */}
+        <div style={{ fontSize: 15, lineHeight: 2.4 }}>
+          <select value={schedTarget} onChange={(e) => setSchedTarget(e.target.value)} style={chip}>
+            <option value="all">발송 대기 전체</option>
+            <option value="selected">체크한 {sel.size}개 업체</option>
+          </select>
+          <span> 를 </span>
+          <select value={sform.type} onChange={(e) => setSform({ ...sform, type: e.target.value })} style={chip}>
+            <option value="once">1회만</option>
+            <option value="daily">매일</option>
+            <option value="weekly">매주</option>
+          </select>
+
+          {sform.type === 'weekly' && (
+            <span style={{ display: 'inline-flex', gap: 4, margin: '0 4px', verticalAlign: 'middle' }}>
+              {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => {
+                const on = sform.weekdays.includes(i);
+                return (
+                  <button key={i} onClick={() => setSform({ ...sform, weekdays: on ? sform.weekdays.filter((x) => x !== i) : [...sform.weekdays, i] })}
+                    style={{ width: 30, height: 30, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)', fontSize: 13, fontWeight: 700,
+                      background: on ? 'linear-gradient(135deg,var(--accent),var(--accent-2))' : 'var(--panel-2)', color: on ? '#fff' : 'var(--muted)' }}>
+                    {d}
+                  </button>
+                );
+              })}
+            </span>
+          )}
+
           {sform.type === 'once' ? (
-            <label>
-              <div className="kpi-label" style={{ marginBottom: 4 }}>예약 일시</div>
-              <input type="datetime-local" value={sform.runAtKst} onChange={(e) => setSform({ ...sform, runAtKst: e.target.value })} style={sInp} />
-            </label>
+            <>
+              <input type="datetime-local" value={sform.runAtKst} onChange={(e) => setSform({ ...sform, runAtKst: e.target.value })} style={chip} />
+              <span> 에 발송</span>
+            </>
           ) : (
             <>
-              <label>
-                <div className="kpi-label" style={{ marginBottom: 4 }}>시작 날짜</div>
-                <input type="date" value={sform.startDate} onChange={(e) => setSform({ ...sform, startDate: e.target.value })} style={sInp} />
-              </label>
-              <label>
-                <div className="kpi-label" style={{ marginBottom: 4 }}>발송 시각</div>
-                <input type="time" value={sform.timeHM} onChange={(e) => setSform({ ...sform, timeHM: e.target.value })} style={sInp} />
-              </label>
+              <input type="date" value={sform.startDate} onChange={(e) => setSform({ ...sform, startDate: e.target.value })} style={chip} />
+              <span> 부터 </span>
+              <input type="time" value={sform.timeHM} onChange={(e) => setSform({ ...sform, timeHM: e.target.value })} style={chip} />
+              <span> 에 발송</span>
             </>
           )}
-          <button className="btn" onClick={createSchedule}>예약 추가</button>
         </div>
 
-        {sform.type === 'weekly' && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => {
-              const on = sform.weekdays.includes(i);
-              return (
-                <button key={i} className={`btn ${on ? '' : 'secondary'}`} style={{ padding: '6px 10px' }}
-                  onClick={() => setSform({ ...sform, weekdays: on ? sform.weekdays.filter((x) => x !== i) : [...sform.weekdays, i] })}>
-                  {d}
-                </button>
-              );
-            })}
+        {/* 옵션 */}
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)' }}>
+            <input type="checkbox" checked={sform.force} onChange={(e) => setSform({ ...sform, force: e.target.checked })} />
+            야간(21~08시)에도 발송
+          </label>
+          <input value={sform.label} onChange={(e) => setSform({ ...sform, label: e.target.value })} placeholder="예약 이름(메모) — 선택" style={{ ...sInp, flex: 1, minWidth: 180 }} />
+        </div>
+
+        {/* 요약 문장 + 실행 */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
+          <div style={{ background: 'rgba(91,140,255,.12)', border: '1px solid var(--border-2)', borderRadius: 10, padding: '10px 14px', fontSize: 14, flex: 1, minWidth: 260 }}>
+            ▶ <b style={{ color: 'var(--accent)' }}>{CATEGORIES.find((c) => c.key === cat)?.label}</b> 카테고리의 {schedSummary}
           </div>
-        )}
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13, color: 'var(--muted)' }}>
-          <input type="checkbox" checked={sform.force} onChange={(e) => setSform({ ...sform, force: e.target.checked })} />
-          야간(21~08시)에도 발송 (야간차단 무시)
-        </label>
-        <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
-          현재 카테고리(<b>{CATEGORIES.find((c) => c.key === cat)?.label}</b>) · 대상 {schedTarget === 'selected' ? <b>선택 {sel.size}건</b> : <b>발송 대기 전체</b>}가 지정 시각에 자동 발송됩니다.
-          {schedTarget === 'selected' && ' (위 목록에서 체크한 업체 기준)'} 예약 실행에는 스케줄러 <code>npm run scheduler</code>가 떠 있어야 합니다.
+          <button className="btn" onClick={createSchedule}>예약 추가</button>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 8 }}>
+          ※ 예약이 실제로 실행되려면 스케줄러(<code>npm run scheduler</code>)가 떠 있어야 합니다. 체크한 업체 대상 예약은 위 목록에서 먼저 체크하세요.
         </div>
       </div>
 
@@ -409,6 +420,13 @@ export default function SendPage() {
 const sInp = {
   padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)',
   background: 'var(--panel-2)', color: 'var(--text)', fontFamily: 'inherit',
+};
+
+// 문장 안에 들어가는 인라인 입력(칩)
+const chip = {
+  padding: '5px 10px', borderRadius: 8, border: '1px solid var(--accent)',
+  background: 'var(--panel-2)', color: 'var(--text)', fontFamily: 'inherit',
+  fontSize: 14, margin: '0 3px', verticalAlign: 'middle',
 };
 
 function Mini({ label, v }) {
