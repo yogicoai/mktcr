@@ -14,6 +14,9 @@ export default function ReviewPage() {
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
+  const [manual, setManual] = useState({ companyName: '', email: '', url: '' });
+  const [manualMsg, setManualMsg] = useState('');
+  const [memoSaved, setMemoSaved] = useState('');
 
   const load = useCallback(async () => {
     const q = new URLSearchParams({ category: cat, status: 'pending', limit: '200' });
@@ -47,6 +50,23 @@ export default function ReviewPage() {
     } finally {
       setBusy('');
     }
+  }
+
+  async function addManual() {
+    setManualMsg('');
+    if (!manual.email) { setManualMsg('❌ 이메일을 입력하세요.'); return; }
+    const r = await fetch('/api/leads/manual', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...manual, category: cat }),
+    }).then((r) => r.json());
+    if (r.ok) { setManualMsg('✅ 추가되었습니다. 아래 목록에서 승인하세요.'); setManual({ companyName: '', email: '', url: '' }); load(); }
+    else setManualMsg('❌ ' + r.error);
+  }
+
+  async function saveMemo(id, memo) {
+    await fetch('/api/leads', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, memo }) });
+    setMemoSaved(id);
+    setTimeout(() => setMemoSaved(''), 1200);
   }
 
   async function review(action) {
@@ -90,6 +110,19 @@ export default function ReviewPage() {
             {c.label}
           </button>
         ))}
+      </div>
+
+      {/* 업체 직접 추가 */}
+      <div className="card" style={{ marginBottom: 16, borderColor: 'var(--good)' }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>➕ 업체 직접 추가 (아는 업체 입력)</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input value={manual.companyName} onChange={(e) => setManual({ ...manual, companyName: e.target.value })} placeholder="업체명" style={{ ...miInp, width: 170 }} />
+          <input value={manual.email} onChange={(e) => setManual({ ...manual, email: e.target.value })} placeholder="담당자 이메일 (필수)" style={{ ...miInp, width: 220 }} />
+          <input value={manual.url} onChange={(e) => setManual({ ...manual, url: e.target.value })} placeholder="홈페이지(선택)" style={{ ...miInp, width: 180 }} />
+          <button className="btn" onClick={addManual}>추가</button>
+          <span style={{ color: 'var(--muted)', fontSize: 12 }}>→ 현재 <b>{CATEGORIES.find((c) => c.key === cat)?.label}</b>에 적합으로 등록</span>
+        </div>
+        {manualMsg && <div style={{ fontSize: 13, marginTop: 8, color: manualMsg.startsWith('✅') ? 'var(--good)' : 'var(--bad)' }}>{manualMsg}</div>}
       </div>
 
       {/* 카테고리별 검토 진행 현황 */}
@@ -137,9 +170,10 @@ export default function ReviewPage() {
               </th>
               <th>업체</th>
               <th>이메일</th>
-              <th style={{ width: 60 }}>AI</th>
-              <th style={{ width: 60 }}>점수</th>
+              <th style={{ width: 50 }}>AI</th>
+              <th style={{ width: 50 }}>점수</th>
               <th>판정 근거</th>
+              <th style={{ width: 200 }}>관리 메모</th>
             </tr>
           </thead>
           <tbody>
@@ -151,10 +185,17 @@ export default function ReviewPage() {
                 <td><span className={`badge ${l.aiStatus}`}>{aiLabel(l.aiStatus)}</span></td>
                 <td>{l.aiScore ?? '-'}</td>
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{l.aiReason || '-'}</td>
+                <td>
+                  <input defaultValue={l.memo || ''}
+                    onBlur={(e) => { if ((e.target.value || '') !== (l.memo || '')) saveMemo(l._id, e.target.value); }}
+                    placeholder="메모…"
+                    style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--panel-2)', color: 'var(--text)', fontSize: 12 }} />
+                  {memoSaved === l._id && <span style={{ color: 'var(--good)', fontSize: 11 }}>저장됨</span>}
+                </td>
               </tr>
             ))}
             {leads.length === 0 && (
-              <tr><td colSpan={6} style={{ color: 'var(--muted)' }}>해당 조건의 리드가 없습니다.</td></tr>
+              <tr><td colSpan={7} style={{ color: 'var(--muted)' }}>해당 조건의 리드가 없습니다.</td></tr>
             )}
           </tbody>
         </table>
@@ -163,6 +204,7 @@ export default function ReviewPage() {
   );
 }
 
+const miInp = { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--panel-2)', color: 'var(--text)', fontFamily: 'inherit' };
 const TONE = { good: 'var(--good)', warn: 'var(--warn)', accent: 'var(--accent)', bad: 'var(--bad)' };
 function Stat({ label, v, tone }) {
   return (

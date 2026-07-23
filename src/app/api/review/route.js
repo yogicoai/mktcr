@@ -41,6 +41,7 @@ export async function POST(req) {
           companyName: l.companyName,
           email: l.email,
           url: l.url,
+          memo: l.memo || '', // 2차 검증 단계 메모 이관
           templateId: null,
           sendStatus: 'ready', // ready → sent/failed/unsubscribed
           createdAt: now,

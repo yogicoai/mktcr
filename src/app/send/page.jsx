@@ -2,7 +2,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CATEGORIES } from '@/lib/categories';
 import { sendLabel } from '@/lib/labels';
-import SendCalendar from '@/components/SendCalendar';
 
 const KST_TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
@@ -19,8 +18,8 @@ export default function SendPage() {
   const [testMsg, setTestMsg] = useState('');
   const [useAd, setUseAd] = useState(true);
   const [memoSaved, setMemoSaved] = useState('');
-  const [selDate, setSelDate] = useState(KST_TODAY);
-  const [cal, setCal] = useState(() => { const [y, m] = KST_TODAY.split('-'); return { year: +y, month: +m - 1 }; });
+  const [rangeStart, setRangeStart] = useState(KST_TODAY);
+  const [rangeEnd, setRangeEnd] = useState(KST_TODAY);
 
   const load = useCallback(async () => {
     const [r, h] = await Promise.all([
@@ -246,29 +245,27 @@ export default function SendPage() {
       </div>
 
 
-      {/* 날짜별 발송 이력 — 달력 */}
+      {/* 날짜별 발송 이력 — 기간 설정 */}
       <h2 style={{ fontSize: 15, marginTop: 32 }}>📅 날짜별 발송 이력</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) 1fr', gap: 16, marginTop: 8, alignItems: 'start' }}>
-        <SendCalendar
-          year={cal.year}
-          month={cal.month}
-          days={history}
-          selected={selDate}
-          todayStr={KST_TODAY}
-          onSelect={setSelDate}
-          onMonth={(d) => {
-            let m = cal.month + d, y = cal.year;
-            if (m < 0) { m = 11; y--; }
-            if (m > 11) { m = 0; y++; }
-            setCal({ year: y, month: m });
-          }}
-        />
-        <div>
-          {(() => {
-            const day = history.find((h) => h.date === selDate);
-            if (!day) return <div className="card" style={{ color: 'var(--muted)' }}>{selDate} · 발송 내역이 없습니다.</div>;
-            return (
-              <div className="card">
+      <div className="card" style={{ marginTop: 8, marginBottom: 12, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <span className="kpi-label">기간</span>
+        <input type="date" value={rangeStart} max={rangeEnd} onChange={(e) => setRangeStart(e.target.value)} style={dateInp} />
+        <span style={{ color: 'var(--muted)' }}>~</span>
+        <input type="date" value={rangeEnd} min={rangeStart} onChange={(e) => setRangeEnd(e.target.value)} style={dateInp} />
+        <span style={{ width: 1, height: 22, background: 'var(--border)' }} />
+        <button className="btn secondary" style={{ padding: '6px 12px' }} onClick={() => { setRangeStart(KST_TODAY); setRangeEnd(KST_TODAY); }}>오늘</button>
+        <button className="btn secondary" style={{ padding: '6px 12px' }} onClick={() => { const d = new Date(Date.now() + 9 * 3600e3 - 6 * 86400e3).toISOString().slice(0, 10); setRangeStart(d); setRangeEnd(KST_TODAY); }}>최근 7일</button>
+        <button className="btn secondary" style={{ padding: '6px 12px' }} onClick={() => { const d = new Date(Date.now() + 9 * 3600e3 - 29 * 86400e3).toISOString().slice(0, 10); setRangeStart(d); setRangeEnd(KST_TODAY); }}>최근 30일</button>
+      </div>
+      {(() => {
+        const inRange = history.filter((h) => h.date >= rangeStart && h.date <= rangeEnd);
+        if (inRange.length === 0) return <div className="card" style={{ color: 'var(--muted)' }}>{rangeStart} ~ {rangeEnd} · 발송 내역이 없습니다.</div>;
+        const totalSent = inRange.reduce((a, d) => a + d.sent, 0);
+        return (
+          <>
+            <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 8 }}>{rangeStart} ~ {rangeEnd} · {inRange.length}일 · 총 발송 {totalSent}건</div>
+            {inRange.map((day) => (
+              <div key={day.date} className="card" style={{ marginBottom: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <strong>{day.date}</strong>
                   <span style={{ color: 'var(--muted)', fontSize: 13 }}>대상 {day.total} · 발송 {day.sent}</span>
@@ -289,13 +286,15 @@ export default function SendPage() {
                   </tbody>
                 </table>
               </div>
-            );
-          })()}
-        </div>
-      </div>
+            ))}
+          </>
+        );
+      })()}
     </div>
   );
 }
+
+const dateInp = { padding: '7px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--panel-2)', color: 'var(--text)', fontFamily: 'inherit' };
 
 function Mini({ label, v }) {
   return (
