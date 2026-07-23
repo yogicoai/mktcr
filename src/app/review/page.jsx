@@ -96,11 +96,9 @@ export default function ReviewPage() {
       {counts && (
         <div className="cards" style={{ marginBottom: 16 }}>
           <Stat label="수집 전체" v={counts.total} />
-          <Stat label="AI 적합" v={counts.aiValid} tone="good" />
-          <Stat label="검토 대기 (적합·미승인)" v={counts.reviewPending} tone="warn" />
-          <Stat label="승인 완료" v={counts.approved} tone="accent" />
-          <Stat label="반려" v={counts.rejected} tone="bad" />
-          <Stat label="AI 미검증" v={counts.aiPending} />
+          <Stat label="AI 미검증" v={counts.aiPending} tone="warn" />
+          <Stat label="AI 적합 (→2차로)" v={counts.aiValid} tone="good" />
+          <Stat label="AI 부적합" v={counts.aiInvalid} tone="bad" />
         </div>
       )}
 
