@@ -3,7 +3,7 @@ import { getDb } from './db';
 // DB에 저장된 설정이 우선, 없으면 env 기본값.
 function defaults() {
   return {
-    smtpHost: process.env.SMTP_HOST || '',
+    smtpHost: process.env.SMTP_HOST || 'wsmtp.ecount.com',
     smtpPort: Number(process.env.SMTP_PORT) || 465,
     smtpSecure: String(process.env.SMTP_SECURE) !== 'false',
     smtpUser: process.env.SMTP_USER || '',
