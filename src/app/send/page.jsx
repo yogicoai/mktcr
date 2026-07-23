@@ -18,18 +18,14 @@ export default function SendPage() {
   const [testEmail, setTestEmail] = useState('');
   const [testMsg, setTestMsg] = useState('');
   const [useAd, setUseAd] = useState(true);
-  const [schedules, setSchedules] = useState([]);
-  const [sform, setSform] = useState({ label: '', type: 'once', runAtKst: '', timeHM: '09:00', startDate: KST_TODAY, weekdays: [1, 2, 3, 4, 5], force: false });
-  const [schedTarget, setSchedTarget] = useState('all'); // all | selected
   const [memoSaved, setMemoSaved] = useState('');
   const [selDate, setSelDate] = useState(KST_TODAY);
   const [cal, setCal] = useState(() => { const [y, m] = KST_TODAY.split('-'); return { year: +y, month: +m - 1 }; });
 
   const load = useCallback(async () => {
-    const [r, h, sc] = await Promise.all([
-      fetch(`/api/recipients?category=${cat}&limit=200`).then((r) => r.json()),
+    const [r, h] = await Promise.all([
+      fetch(`/api/recipients?category=${cat}&scheduled=false&limit=200`).then((r) => r.json()),
       fetch(`/api/campaigns?category=${cat}`).then((r) => r.json()),
-      fetch(`/api/schedules`).then((r) => r.json()),
     ]);
     if (r.ok) {
       setItems(r.items);
@@ -37,7 +33,6 @@ export default function SendPage() {
       setSel(new Set());
     } else setErr(r.error);
     if (h.ok) setHistory(h.days);
-    if (sc.ok) setSchedules(sc.items);
   }, [cat]);
 
   useEffect(() => {
@@ -53,28 +48,20 @@ export default function SendPage() {
     await fetch('/api/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ useAdPrefix: next }) });
   }
 
-  async function createSchedule() {
-    setErr(''); setMsg('');
-    const ids = schedTarget === 'selected' ? [...sel] : [];
-    if (schedTarget === 'selected' && !ids.length) { setErr('선택 업체 예약은 목록에서 먼저 체크하세요.'); return; }
-    const body = { ...sform, category: cat, ids };
-    const r = await fetch('/api/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
-    if (r.ok) { setMsg('예약이 등록되었습니다.'); setSform({ ...sform, label: '' }); load(); }
-    else setErr(r.error);
+  async function moveToSchedule() {
+    const ids = [...sel]; if (!ids.length) return;
+    setBusy(true); setErr(''); setMsg('');
+    try {
+      const r = await fetch('/api/recipients/move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids, scheduled: true }) }).then((r) => r.json());
+      if (r.ok) { setMsg(`${r.moved}건을 예약 발송 리스트로 옮겼습니다. (좌측 '예약 발송' 탭에서 설정)`); load(); }
+      else setErr(r.error);
+    } finally { setBusy(false); }
   }
 
   async function saveMemo(id, memo) {
     await fetch('/api/recipients', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, memo }) });
     setMemoSaved(id);
     setTimeout(() => setMemoSaved(''), 1200);
-  }
-  async function toggleSchedule(id, enabled) {
-    await fetch('/api/schedules', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, enabled }) });
-    load();
-  }
-  async function deleteSchedule(id) {
-    await fetch(`/api/schedules?id=${id}`, { method: 'DELETE' });
-    load();
   }
 
   // 발송 대기(ready)인 행만 선택 대상
@@ -138,16 +125,6 @@ export default function SendPage() {
   }
 
   const ready = counts.ready || 0;
-
-  // 예약 요약 문장
-  const targetTxt = schedTarget === 'selected' ? `체크한 ${sel.size}개 업체` : '발송 대기 전체';
-  const wdTxt = sform.type === 'weekly' ? `(${[...sform.weekdays].sort((a, b) => a - b).map((i) => '일월화수목금토'[i]).join('·')})` : '';
-  const whenTxt = sform.type === 'once'
-    ? (sform.runAtKst ? sform.runAtKst.replace('T', ' ') + '에' : '(일시를 정하세요)')
-    : sform.type === 'daily'
-      ? `매일 ${sform.timeHM}, ${sform.startDate}부터`
-      : `매주${wdTxt} ${sform.timeHM}, ${sform.startDate}부터`;
-  const schedSummary = `${targetTxt}에 ${whenTxt} 발송합니다.${sform.force ? ' (야간 포함)' : ''}`;
 
   return (
     <div>
@@ -224,6 +201,10 @@ export default function SendPage() {
         <button className="btn secondary" onClick={() => send([...sel], true)} disabled={busy || !sel.size} title="야간 차단 무시">
           야간차단 무시(선택)
         </button>
+        <span style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 4px' }} />
+        <button className="btn secondary" onClick={moveToSchedule} disabled={busy || !sel.size} title="예약 발송 탭으로 이동" style={{ borderColor: 'var(--accent-2)' }}>
+          ⏰ 예약 발송으로 옮기기 ({sel.size})
+        </button>
       </div>
 
       <div className="card">
@@ -264,107 +245,6 @@ export default function SendPage() {
         </table>
       </div>
 
-      {/* 예약 / 주기 발송 — 문장형 */}
-      <h2 style={{ fontSize: 15, marginTop: 32 }}>⏰ 예약 · 주기 발송</h2>
-      <div className="card" style={{ marginTop: 8 }}>
-        {/* 자연어 문장 조립 */}
-        <div style={{ fontSize: 15, lineHeight: 2.4 }}>
-          <select value={schedTarget} onChange={(e) => setSchedTarget(e.target.value)} style={chip}>
-            <option value="all">발송 대기 전체</option>
-            <option value="selected">체크한 {sel.size}개 업체</option>
-          </select>
-          <span> 를 </span>
-          <select value={sform.type} onChange={(e) => setSform({ ...sform, type: e.target.value })} style={chip}>
-            <option value="once">1회만</option>
-            <option value="daily">매일</option>
-            <option value="weekly">매주</option>
-          </select>
-
-          {sform.type === 'weekly' && (
-            <span style={{ display: 'inline-flex', gap: 4, margin: '0 4px', verticalAlign: 'middle' }}>
-              {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => {
-                const on = sform.weekdays.includes(i);
-                return (
-                  <button key={i} onClick={() => setSform({ ...sform, weekdays: on ? sform.weekdays.filter((x) => x !== i) : [...sform.weekdays, i] })}
-                    style={{ width: 30, height: 30, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)', fontSize: 13, fontWeight: 700,
-                      background: on ? 'linear-gradient(135deg,var(--accent),var(--accent-2))' : 'var(--panel-2)', color: on ? '#fff' : 'var(--muted)' }}>
-                    {d}
-                  </button>
-                );
-              })}
-            </span>
-          )}
-
-          {sform.type === 'once' ? (
-            <>
-              <input type="datetime-local" value={sform.runAtKst} onChange={(e) => setSform({ ...sform, runAtKst: e.target.value })} style={chip} />
-              <span> 에 발송</span>
-            </>
-          ) : (
-            <>
-              <input type="date" value={sform.startDate} onChange={(e) => setSform({ ...sform, startDate: e.target.value })} style={chip} />
-              <span> 부터 </span>
-              <input type="time" value={sform.timeHM} onChange={(e) => setSform({ ...sform, timeHM: e.target.value })} style={chip} />
-              <span> 에 발송</span>
-            </>
-          )}
-        </div>
-
-        {/* 옵션 */}
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--muted)' }}>
-            <input type="checkbox" checked={sform.force} onChange={(e) => setSform({ ...sform, force: e.target.checked })} />
-            야간(21~08시)에도 발송
-          </label>
-          <input value={sform.label} onChange={(e) => setSform({ ...sform, label: e.target.value })} placeholder="예약 이름(메모) — 선택" style={{ ...sInp, flex: 1, minWidth: 180 }} />
-        </div>
-
-        {/* 요약 문장 + 실행 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
-          <div style={{ background: 'rgba(91,140,255,.12)', border: '1px solid var(--border-2)', borderRadius: 10, padding: '10px 14px', fontSize: 14, flex: 1, minWidth: 260 }}>
-            ▶ <b style={{ color: 'var(--accent)' }}>{CATEGORIES.find((c) => c.key === cat)?.label}</b> 카테고리의 {schedSummary}
-          </div>
-          <button className="btn" onClick={createSchedule}>예약 추가</button>
-        </div>
-        <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 8 }}>
-          ※ 예약이 실제로 실행되려면 스케줄러(<code>npm run scheduler</code>)가 떠 있어야 합니다. 체크한 업체 대상 예약은 위 목록에서 먼저 체크하세요.
-        </div>
-      </div>
-
-      {/* 예약 목록 */}
-      {schedules.length > 0 && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <table>
-            <thead>
-              <tr><th>이름</th><th>카테고리</th><th>유형</th><th>대상</th><th>시각</th><th>상태</th><th>마지막 실행</th><th style={{ width: 120 }}></th></tr>
-            </thead>
-            <tbody>
-              {schedules.map((s) => (
-                <tr key={s._id}>
-                  <td>{s.label || '-'}</td>
-                  <td>{CATEGORIES.find((c) => c.key === s.category)?.label || s.category}</td>
-                  <td>{{ once: '1회', daily: '매일', weekly: '매주' }[s.type]}{s.type === 'weekly' ? ` (${s.weekdays.map((i) => '일월화수목금토'[i]).join('')})` : ''}</td>
-                  <td>{s.ids && s.ids.length ? `선택 ${s.ids.length}건` : '대기 전체'}</td>
-                  <td>{s.type === 'once' ? (s.runAtKst || '').replace('T', ' ') : `${s.startDate ? s.startDate.slice(5) + '~ ' : ''}${s.timeHM}`}{s.force ? ' ⚡' : ''}</td>
-                  <td><span className={`badge ${s.done ? 'sent' : s.enabled ? 'ready' : 'unsubscribed'}`}>{s.done ? '완료' : s.enabled ? '활성' : '중지'}</span></td>
-                  <td style={{ color: 'var(--muted)', fontSize: 12 }}>
-                    {s.lastRunAt ? new Date(s.lastRunAt).toLocaleString('ko-KR') : '-'}
-                    {s.lastResult && s.lastResult.ok ? ` · 성공 ${s.lastResult.sent}` : s.lastResult && !s.lastResult.ok ? ` · ${s.lastResult.error?.slice(0, 20)}` : ''}
-                  </td>
-                  <td>
-                    {!s.done && (
-                      <button className="btn secondary" style={{ padding: '5px 9px', fontSize: 12 }} onClick={() => toggleSchedule(s._id, !s.enabled)}>
-                        {s.enabled ? '중지' : '재개'}
-                      </button>
-                    )}
-                    <button className="btn secondary" style={{ padding: '5px 9px', fontSize: 12, marginLeft: 4 }} onClick={() => deleteSchedule(s._id)}>삭제</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
 
       {/* 날짜별 발송 이력 — 달력 */}
       <h2 style={{ fontSize: 15, marginTop: 32 }}>📅 날짜별 발송 이력</h2>
@@ -416,18 +296,6 @@ export default function SendPage() {
     </div>
   );
 }
-
-const sInp = {
-  padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)',
-  background: 'var(--panel-2)', color: 'var(--text)', fontFamily: 'inherit',
-};
-
-// 문장 안에 들어가는 인라인 입력(칩)
-const chip = {
-  padding: '5px 10px', borderRadius: 8, border: '1px solid var(--accent)',
-  background: 'var(--panel-2)', color: 'var(--text)', fontFamily: 'inherit',
-  fontSize: 14, margin: '0 3px', verticalAlign: 'middle',
-};
 
 function Mini({ label, v }) {
   return (

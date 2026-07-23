@@ -23,8 +23,11 @@ export async function GET(req) {
     const q = {};
     const category = searchParams.get('category');
     const sendStatus = searchParams.get('sendStatus');
+    const scheduled = searchParams.get('scheduled'); // 'true'=예약 리스트, 'false'=즉시 리스트
     if (category) q.category = category;
     if (sendStatus) q.sendStatus = sendStatus;
+    if (scheduled === 'true') q.scheduled = true;
+    else if (scheduled === 'false') q.scheduled = { $ne: true };
     const limit = Math.min(Number(searchParams.get('limit')) || 200, 500);
 
     const recCol = await collections.recipients();

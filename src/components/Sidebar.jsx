@@ -10,6 +10,7 @@ const NAV = [
       { href: '/crawl', label: '🔍 크롤링 (키워드)' },
       { href: '/review', label: '🧪 1차 검토 (AI)' },
       { href: '/send', label: '✉️ 발송 리스트' },
+      { href: '/schedule', label: '⏰ 예약 발송' },
     ],
   },
   {
