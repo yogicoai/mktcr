@@ -19,7 +19,13 @@ const NAV = [
       { href: '/settings', label: '⚙️ 발송 설정' },
     ],
   },
-  { group: '도움말', items: [{ href: '/guide', label: '📖 이용 가이드' }] },
+  {
+    group: '도움말',
+    items: [
+      { href: '/guide', label: '📖 이용 가이드' },
+      { href: '/test', label: '🧪 테스트 발송' },
+    ],
+  },
 ];
 
 export default function Sidebar() {
