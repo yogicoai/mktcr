@@ -13,6 +13,7 @@ function defaults() {
     companyName: process.env.COMPANY_NAME || '주식회사 요기보',
     companyAddr: process.env.COMPANY_ADDR || '',
     companyTel: process.env.COMPANY_TEL || '',
+    useAdPrefix: true, // 제목 (광고) 표기 (정보통신망법 준수 — 기본 켜짐)
   };
 }
 

@@ -69,6 +69,25 @@ export default function GuidePage() {
         </Step>
       </div>
 
+      {/* 새 크롤링 제안 */}
+      <h2 style={{ fontSize: 15, marginTop: 32 }}>🔎 새 크롤링을 원할 때 (관리자에게 제안하기)</h2>
+      <div className="card" style={{ marginTop: 8, color: 'var(--muted)', lineHeight: 1.8 }}>
+        대량 수집(전국 크롤)은 <b style={{ color: 'var(--text)' }}>관리자가 실행</b>합니다. 새 타깃을 넓히고 싶으면 아래 항목을 정리해 관리자에게 요청하세요:
+        <ol style={{ margin: '10px 0 0', paddingLeft: 20 }}>
+          <li><b style={{ color: 'var(--text)' }}>카테고리</b> — 학교·공공·복지 / 기업 / 병·의원 / 리조트·호텔 / 스포츠 중 무엇</li>
+          <li><b style={{ color: 'var(--text)' }}>키워드(예시)</b> — 예: “대학병원”, “골프리조트”, “IT기업”, “문화센터” 등 (구체적일수록 좋음)</li>
+          <li><b style={{ color: 'var(--text)' }}>지역</b> — 전국 / 특정 시·도(예: 서울·경기·부산)</li>
+          <li><b style={{ color: 'var(--text)' }}>타깃 규모</b> — 요기보는 <b style={{ color: 'var(--text)' }}>대량 납품 가치가 있는 규모 있는 곳</b>이 적합 (소규모는 AI가 걸러냄)</li>
+          <li><b style={{ color: 'var(--text)' }}>목표 건수</b> — 대략 몇 건 정도 필요한지</li>
+        </ol>
+        <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--panel-2)', borderRadius: 8, color: 'var(--text)', fontSize: 13 }}>
+          제안 예시: <i>“리조트·호텔 카테고리에 ‘골프리조트, 워터파크’ 키워드로 전국 크롤 부탁드려요. 규모 있는 곳 위주로 200건 정도 목표입니다.”</i>
+        </div>
+        <div style={{ marginTop: 8, fontSize: 12 }}>
+          관리자는 <code>scripts/crawlAll.js</code>의 키워드에 반영 후 <code>npm run crawl:all</code>로 실행합니다. 이미 수집된 이메일은 자동 중복 제거되어, <b style={{ color: 'var(--text)' }}>새 키워드를 넣어야 신규가 쌓입니다.</b>
+        </div>
+      </div>
+
       {/* 상태값 */}
       <h2 style={{ fontSize: 15, marginTop: 32 }}>🏷️ 상태값 뜻</h2>
       <div className="card" style={{ marginTop: 8 }}>
@@ -87,6 +106,10 @@ export default function GuidePage() {
       <div className="card" style={{ marginTop: 8, color: 'var(--muted)', lineHeight: 1.7 }}>
         정보통신망법 제50조에 따라 발송 시 자동 적용: 제목 <b style={{ color: 'var(--text)' }}>(광고)</b> 표기 ·
         본문 하단 <b style={{ color: 'var(--text)' }}>발신자 정보 + 수신거부 링크</b> · <b style={{ color: 'var(--text)' }}>야간(21~08시) 발송 차단</b>.
+        <div style={{ marginTop: 8, color: 'var(--warn)' }}>
+          ※ 제목의 <b>(광고)</b> 표기는 영리목적 광고성 메일의 <b>법적 의무</b>입니다. <b style={{ color: 'var(--text)' }}>발송 설정</b>에서 끌 수 있으나,
+          끄면 <b style={{ color: 'var(--bad)' }}>법 위반(과태료) 소지</b>가 있으므로 회사 책임하에 신중히 결정하세요.
+        </div>
       </div>
     </div>
   );

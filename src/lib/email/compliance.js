@@ -39,9 +39,10 @@ export function verifyUnsubscribe(e, t) {
   }
 }
 
-/** 제목에 (광고) 표기 (중복 방지) */
-export function adSubject(subject) {
+/** 제목에 (광고) 표기 (중복 방지). useAd=false 면 표기하지 않음. */
+export function adSubject(subject, useAd = true) {
   const s = String(subject || '').trim();
+  if (!useAd) return s;
   return s.startsWith('(광고)') ? s : `(광고) ${s}`;
 }
 

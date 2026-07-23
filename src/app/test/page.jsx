@@ -9,6 +9,7 @@ export default function TestSendPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const [useAd, setUseAd] = useState(true);
 
   useEffect(() => {
     fetch('/api/templates').then((r) => r.json()).then((r) => {
@@ -17,6 +18,9 @@ export default function TestSendPage() {
         r.templates.forEach((t) => (m[t.category] = t));
         setTpls(m);
       } else setErr(r.error);
+    });
+    fetch('/api/settings').then((r) => r.json()).then((r) => {
+      if (r.ok) setUseAd(r.settings.useAdPrefix !== false);
     });
   }, []);
 
@@ -70,7 +74,7 @@ export default function TestSendPage() {
       <h2 style={{ fontSize: 15 }}>미리보기 — 실제로 이렇게 발송됩니다</h2>
       <div className="card" style={{ marginTop: 8 }}>
         <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 4 }}>제목</div>
-        <div style={{ fontWeight: 700, marginBottom: 16 }}>[테스트] (광고) {tpl?.subject || ''}</div>
+        <div style={{ fontWeight: 700, marginBottom: 16 }}>[테스트] {useAd ? '(광고) ' : ''}{tpl?.subject || ''}</div>
         <div style={{ color: 'var(--muted)', fontSize: 12, marginBottom: 6 }}>본문</div>
         <div style={{ background: '#fff', color: '#222', borderRadius: 10, padding: '24px 28px' }}
              dangerouslySetInnerHTML={{ __html: previewBody }} />

@@ -7,6 +7,7 @@ export default function SettingsPage() {
     smtpUser: '', smtpPass: '',
     mailFromName: '', mailFromAddress: '',
     companyName: '', companyAddr: '', companyTel: '',
+    useAdPrefix: true,
   });
   const [hasUser, setHasUser] = useState(false);
   const [hasPass, setHasPass] = useState(false);
@@ -23,6 +24,7 @@ export default function SettingsPage() {
           smtpHost: s.smtpHost || '', smtpPort: s.smtpPort || 465, smtpSecure: s.smtpSecure !== false,
           mailFromName: s.mailFromName || '', mailFromAddress: s.mailFromAddress || '',
           companyName: s.companyName || '', companyAddr: s.companyAddr || '', companyTel: s.companyTel || '',
+          useAdPrefix: s.useAdPrefix !== false,
           smtpUser: '', smtpPass: '',
         }));
         setHasUser(s.hasUser); setHasPass(s.hasPass);
@@ -86,6 +88,19 @@ export default function SettingsPage() {
             </Field>
           </div>
         </details>
+      </Section>
+
+      <Section title="발송 옵션">
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+          <input type="checkbox" checked={f.useAdPrefix} onChange={set('useAdPrefix')} style={{ marginTop: 3 }} />
+          <span>
+            <span style={{ fontWeight: 600 }}>제목에 <b>(광고)</b> 표기</span>
+            <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 4, lineHeight: 1.6 }}>
+              정보통신망법 제50조상 <b style={{ color: 'var(--warn)' }}>영리목적 광고성 메일은 (광고) 표기가 의무</b>입니다.
+              끄면 제목에 (광고)가 붙지 않지만 <b style={{ color: 'var(--bad)' }}>법 위반(과태료) 소지</b>가 있으니 신중히 결정하세요.
+            </div>
+          </span>
+        </label>
       </Section>
 
       <Section title="회사 정보 (법규 준수 — 메일 하단 자동 표기)">

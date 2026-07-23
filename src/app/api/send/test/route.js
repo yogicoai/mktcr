@@ -24,7 +24,7 @@ export async function POST(req) {
     const company = { name: s.companyName, addr: s.companyAddr, tel: s.companyTel };
 
     const vars = { companyName: '테스트 수신자' };
-    const subject = '[테스트] ' + adSubject(renderTemplate(tpl.subject, vars));
+    const subject = '[테스트] ' + adSubject(renderTemplate(tpl.subject, vars), s.useAdPrefix !== false);
     const body = renderTemplate(tpl.bodyHtml, vars);
     const html = withComplianceFooter(body, to, company);
 

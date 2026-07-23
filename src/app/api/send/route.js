@@ -64,7 +64,7 @@ export async function POST(req) {
 
     const campaign = await campCol.insertOne({
       category,
-      subject: adSubject(tpl.subject),
+      subject: adSubject(tpl.subject, settings.useAdPrefix !== false),
       total: targets.length,
       sentCount: 0,
       createdAt: new Date(),
@@ -84,7 +84,7 @@ export async function POST(req) {
       }
       try {
         const vars = { companyName: r.companyName || '담당자' };
-        const subject = adSubject(renderTemplate(tpl.subject, vars));
+        const subject = adSubject(renderTemplate(tpl.subject, vars), settings.useAdPrefix !== false);
         const body = renderTemplate(tpl.bodyHtml, vars);
         const html = withComplianceFooter(body, r.email, company);
         await sendMail({ to: r.email, subject, html });

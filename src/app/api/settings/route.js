@@ -18,6 +18,7 @@ export async function GET() {
         companyName: s.companyName,
         companyAddr: s.companyAddr,
         companyTel: s.companyTel,
+        useAdPrefix: s.useAdPrefix !== false,
         // 보안: 값 대신 설정 여부만
         hasUser: Boolean(s.smtpUser),
         hasPass: Boolean(s.smtpPass),
@@ -33,7 +34,7 @@ export async function PUT(req) {
   try {
     const body = await req.json();
     const allow = ['smtpHost', 'smtpPort', 'smtpSecure', 'smtpUser', 'smtpPass',
-      'mailFromName', 'mailFromAddress', 'companyName', 'companyAddr', 'companyTel'];
+      'mailFromName', 'mailFromAddress', 'companyName', 'companyAddr', 'companyTel', 'useAdPrefix'];
     const patch = {};
     for (const k of allow) if (k in body) patch[k] = body[k];
     if ('smtpPort' in patch) patch.smtpPort = Number(patch.smtpPort) || 465;
