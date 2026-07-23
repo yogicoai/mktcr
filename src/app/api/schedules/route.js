@@ -38,6 +38,7 @@ export async function POST(req) {
       targetCount: Array.isArray(b.ids) ? b.ids.length : 0,
       runAtKst: b.type === 'once' ? String(b.runAtKst) : null,
       timeHM: b.type !== 'once' ? String(b.timeHM) : null,
+      startDate: b.type !== 'once' ? String(b.startDate || '') : null, // 주기 발송 시작 날짜(YYYY-MM-DD)
       weekdays: b.type === 'weekly' ? b.weekdays.map(Number) : [],
       enabled: true,
       done: false,

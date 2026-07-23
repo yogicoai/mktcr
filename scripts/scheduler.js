@@ -22,6 +22,8 @@ function kstParts() {
 
 function isDue(s, k) {
   if (s.type === 'once') return k.stamp >= s.runAtKst;
+  // 주기: 시작 날짜 이후부터
+  if (s.startDate && k.date < s.startDate) return false;
   if (s.type === 'daily') return s.lastRunDate !== k.date && k.hm >= s.timeHM;
   if (s.type === 'weekly') return (s.weekdays || []).includes(k.dow) && s.lastRunDate !== k.date && k.hm >= s.timeHM;
   return false;

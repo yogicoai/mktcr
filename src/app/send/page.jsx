@@ -2,6 +2,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CATEGORIES } from '@/lib/categories';
 import { sendLabel } from '@/lib/labels';
+import SendCalendar from '@/components/SendCalendar';
+
+const KST_TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
 export default function SendPage() {
   const [cat, setCat] = useState(CATEGORIES[0].key);
@@ -16,9 +19,11 @@ export default function SendPage() {
   const [testMsg, setTestMsg] = useState('');
   const [useAd, setUseAd] = useState(true);
   const [schedules, setSchedules] = useState([]);
-  const [sform, setSform] = useState({ label: '', type: 'once', runAtKst: '', timeHM: '09:00', weekdays: [1, 2, 3, 4, 5], force: false });
+  const [sform, setSform] = useState({ label: '', type: 'once', runAtKst: '', timeHM: '09:00', startDate: KST_TODAY, weekdays: [1, 2, 3, 4, 5], force: false });
   const [schedTarget, setSchedTarget] = useState('all'); // all | selected
   const [memoSaved, setMemoSaved] = useState('');
+  const [selDate, setSelDate] = useState(KST_TODAY);
+  const [cal, setCal] = useState(() => { const [y, m] = KST_TODAY.split('-'); return { year: +y, month: +m - 1 }; });
 
   const load = useCallback(async () => {
     const [r, h, sc] = await Promise.all([
@@ -278,10 +283,16 @@ export default function SendPage() {
               <input type="datetime-local" value={sform.runAtKst} onChange={(e) => setSform({ ...sform, runAtKst: e.target.value })} style={sInp} />
             </label>
           ) : (
-            <label>
-              <div className="kpi-label" style={{ marginBottom: 4 }}>발송 시각</div>
-              <input type="time" value={sform.timeHM} onChange={(e) => setSform({ ...sform, timeHM: e.target.value })} style={sInp} />
-            </label>
+            <>
+              <label>
+                <div className="kpi-label" style={{ marginBottom: 4 }}>시작 날짜</div>
+                <input type="date" value={sform.startDate} onChange={(e) => setSform({ ...sform, startDate: e.target.value })} style={sInp} />
+              </label>
+              <label>
+                <div className="kpi-label" style={{ marginBottom: 4 }}>발송 시각</div>
+                <input type="time" value={sform.timeHM} onChange={(e) => setSform({ ...sform, timeHM: e.target.value })} style={sInp} />
+              </label>
+            </>
           )}
           <button className="btn" onClick={createSchedule}>예약 추가</button>
         </div>
@@ -323,7 +334,7 @@ export default function SendPage() {
                   <td>{CATEGORIES.find((c) => c.key === s.category)?.label || s.category}</td>
                   <td>{{ once: '1회', daily: '매일', weekly: '매주' }[s.type]}{s.type === 'weekly' ? ` (${s.weekdays.map((i) => '일월화수목금토'[i]).join('')})` : ''}</td>
                   <td>{s.ids && s.ids.length ? `선택 ${s.ids.length}건` : '대기 전체'}</td>
-                  <td>{s.type === 'once' ? (s.runAtKst || '').replace('T', ' ') : s.timeHM}{s.force ? ' ⚡' : ''}</td>
+                  <td>{s.type === 'once' ? (s.runAtKst || '').replace('T', ' ') : `${s.startDate ? s.startDate.slice(5) + '~ ' : ''}${s.timeHM}`}{s.force ? ' ⚡' : ''}</td>
                   <td><span className={`badge ${s.done ? 'sent' : s.enabled ? 'ready' : 'unsubscribed'}`}>{s.done ? '완료' : s.enabled ? '활성' : '중지'}</span></td>
                   <td style={{ color: 'var(--muted)', fontSize: 12 }}>
                     {s.lastRunAt ? new Date(s.lastRunAt).toLocaleString('ko-KR') : '-'}
@@ -344,35 +355,53 @@ export default function SendPage() {
         </div>
       )}
 
-      {/* 날짜별 발송 이력 */}
+      {/* 날짜별 발송 이력 — 달력 */}
       <h2 style={{ fontSize: 15, marginTop: 32 }}>📅 날짜별 발송 이력</h2>
-      {history.length === 0 ? (
-        <div className="card" style={{ marginTop: 8, color: 'var(--muted)' }}>아직 발송 이력이 없습니다.</div>
-      ) : (
-        history.map((day) => (
-          <div key={day.date} className="card" style={{ marginTop: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <strong>{day.date}</strong>
-              <span style={{ color: 'var(--muted)', fontSize: 13 }}>대상 {day.total} · 발송 {day.sent}</span>
-            </div>
-            <table>
-              <thead>
-                <tr><th style={{ width: 60 }}>시각</th><th style={{ width: 140 }}>카테고리</th><th>제목</th><th style={{ width: 100 }}>발송/대상</th></tr>
-              </thead>
-              <tbody>
-                {day.items.map((c) => (
-                  <tr key={c._id}>
-                    <td style={{ color: 'var(--muted)' }}>{c.time}</td>
-                    <td>{c.categoryLabel}</td>
-                    <td>{c.subject}</td>
-                    <td>{c.sentCount}/{c.total}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))
-      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 360px) 1fr', gap: 16, marginTop: 8, alignItems: 'start' }}>
+        <SendCalendar
+          year={cal.year}
+          month={cal.month}
+          days={history}
+          selected={selDate}
+          todayStr={KST_TODAY}
+          onSelect={setSelDate}
+          onMonth={(d) => {
+            let m = cal.month + d, y = cal.year;
+            if (m < 0) { m = 11; y--; }
+            if (m > 11) { m = 0; y++; }
+            setCal({ year: y, month: m });
+          }}
+        />
+        <div>
+          {(() => {
+            const day = history.find((h) => h.date === selDate);
+            if (!day) return <div className="card" style={{ color: 'var(--muted)' }}>{selDate} · 발송 내역이 없습니다.</div>;
+            return (
+              <div className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <strong>{day.date}</strong>
+                  <span style={{ color: 'var(--muted)', fontSize: 13 }}>대상 {day.total} · 발송 {day.sent}</span>
+                </div>
+                <table>
+                  <thead>
+                    <tr><th style={{ width: 60 }}>시각</th><th style={{ width: 130 }}>카테고리</th><th>제목</th><th style={{ width: 90 }}>발송/대상</th></tr>
+                  </thead>
+                  <tbody>
+                    {day.items.map((c) => (
+                      <tr key={c._id}>
+                        <td style={{ color: 'var(--muted)' }}>{c.time}</td>
+                        <td>{c.categoryLabel}</td>
+                        <td>{c.subject}</td>
+                        <td>{c.sentCount}/{c.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </div>
+      </div>
     </div>
   );
 }
