@@ -4,11 +4,12 @@ import { usePathname } from 'next/navigation';
 
 const NAV = [
   { group: '대시보드', items: [{ href: '/', label: '📊 개요' }] },
+  { group: '수집', items: [{ href: '/crawl', label: '🔍 크롤링' }] },
   {
     group: '파이프라인',
     items: [
-      { href: '/crawl', label: '🔍 크롤링 (키워드)' },
       { href: '/review', label: '🧪 1차 검토 (AI)' },
+      { href: '/review2', label: '🧑‍💼 2차 마케터 검토' },
       { href: '/send', label: '✉️ 발송 리스트' },
       { href: '/schedule', label: '⏰ 예약 발송' },
     ],
