@@ -13,6 +13,8 @@ export default function CrawlPage() {
   const [result, setResult] = useState(null);
   const [leads, setLeads] = useState([]);
   const [err, setErr] = useState('');
+  const [manual, setManual] = useState({ companyName: '', email: '', url: '' });
+  const [manualMsg, setManualMsg] = useState('');
 
   const loadKeywords = useCallback(async () => {
     const r = await fetch('/api/keywords').then((r) => r.json());
@@ -71,12 +73,38 @@ export default function CrawlPage() {
     }
   }
 
+  async function addManual() {
+    setManualMsg('');
+    if (!manual.email) { setManualMsg('❌ 이메일을 입력하세요.'); return; }
+    const r = await fetch('/api/leads/manual', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...manual, category: cat }),
+    }).then((r) => r.json());
+    if (r.ok) { setManualMsg('✅ 추가되었습니다. 1차 검토에서 승인하세요.'); setManual({ companyName: '', email: '', url: '' }); loadLeads(); }
+    else setManualMsg('❌ ' + r.error);
+  }
+
   const catKeywords = keywords[cat] || [];
 
   return (
     <div>
       <h1 className="page-title">크롤링 (키워드)</h1>
       <p className="page-sub">카테고리·키워드 관리 후 네이버 발굴 → 홈페이지에서 이메일을 수집해 1차 DB에 적재합니다.</p>
+
+      {/* 업체 직접 추가 */}
+      <div className="card" style={{ marginBottom: 16, borderColor: 'var(--good)' }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>➕ 업체 직접 추가 (아는 업체 입력)</div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input value={manual.companyName} onChange={(e) => setManual({ ...manual, companyName: e.target.value })} placeholder="업체명" style={{ ...inputStyle, width: 180 }} />
+          <input value={manual.email} onChange={(e) => setManual({ ...manual, email: e.target.value })} placeholder="이메일 (필수)" style={{ ...inputStyle, width: 220 }} />
+          <input value={manual.url} onChange={(e) => setManual({ ...manual, url: e.target.value })} placeholder="홈페이지(선택)" style={{ ...inputStyle, width: 200 }} />
+          <button className="btn" onClick={addManual}>추가</button>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
+          현재 카테고리(<b>{CATEGORIES.find((c) => c.key === cat)?.label}</b>)에 <b>적합(관리자 추가)</b>로 등록됩니다. 1차 검토에서 바로 승인 가능.
+        </div>
+        {manualMsg && <div style={{ fontSize: 13, marginTop: 8, color: manualMsg.startsWith('✅') ? 'var(--good)' : 'var(--bad)' }}>{manualMsg}</div>}
+      </div>
 
       {/* 카테고리 탭 */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
