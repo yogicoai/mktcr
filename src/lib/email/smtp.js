@@ -1,36 +1,20 @@
-// 회사 메일 SMTP 발송 (nodemailer).
+// 회사 메일 SMTP 발송 (nodemailer) — 설정은 DB(settings) 우선, env 폴백.
 import nodemailer from 'nodemailer';
-
-let transporter = null;
-
-export function getTransporter() {
-  if (transporter) return transporter;
-  const { SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS } = process.env;
-  if (!SMTP_HOST || !SMTP_USER) {
-    throw new Error('SMTP_HOST / SMTP_USER 미설정 — .env.local 을 확인하세요.');
-  }
-  transporter = nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT) || 465,
-    secure: String(SMTP_SECURE) !== 'false',
-    auth: { user: SMTP_USER, pass: SMTP_PASS },
-  });
-  return transporter;
-}
-
-export function fromAddress() {
-  const name = process.env.MAIL_FROM_NAME || '요기보 마케팅';
-  const addr = process.env.MAIL_FROM_ADDRESS || process.env.SMTP_USER;
-  return `${name} <${addr}>`;
-}
+import { getSettings } from '../settings';
 
 /** 단일 메일 발송 */
 export async function sendMail({ to, subject, html }) {
-  const info = await getTransporter().sendMail({
-    from: fromAddress(),
-    to,
-    subject,
-    html,
+  const s = await getSettings();
+  if (!s.smtpHost || !s.smtpUser) {
+    throw new Error('SMTP 설정이 없습니다. 설정 화면에서 호스트·아이디·비밀번호를 입력하세요.');
+  }
+  const transporter = nodemailer.createTransport({
+    host: s.smtpHost,
+    port: Number(s.smtpPort) || 465,
+    secure: s.smtpSecure !== false,
+    auth: { user: s.smtpUser, pass: s.smtpPass },
   });
+  const from = `${s.mailFromName || '요기보 마케팅'} <${s.mailFromAddress || s.smtpUser}>`;
+  const info = await transporter.sendMail({ from, to, subject, html });
   return info.messageId;
 }

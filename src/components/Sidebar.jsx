@@ -12,7 +12,14 @@ const NAV = [
       { href: '/send', label: '✉️ 발송 리스트' },
     ],
   },
-  { group: '설정', items: [{ href: '/templates', label: '📝 메일 양식' }] },
+  {
+    group: '설정',
+    items: [
+      { href: '/templates', label: '📝 메일 양식' },
+      { href: '/settings', label: '⚙️ 발송 설정' },
+    ],
+  },
+  { group: '도움말', items: [{ href: '/guide', label: '📖 이용 가이드' }] },
 ];
 
 export default function Sidebar() {

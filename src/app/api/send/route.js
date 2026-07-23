@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 import { collections } from '@/lib/db';
 import { getTemplate } from '@/lib/email/templates';
 import { sendMail } from '@/lib/email/smtp';
+import { getSettings } from '@/lib/settings';
 import {
   adSubject,
   withComplianceFooter,
@@ -40,6 +41,9 @@ export async function POST(req) {
 
     const tpl = await getTemplate(category);
     if (!tpl) throw new Error('메일 양식이 없습니다');
+
+    const settings = await getSettings();
+    const company = { name: settings.companyName, addr: settings.companyAddr, tel: settings.companyTel };
 
     const recCol = await collections.recipients();
     const unsubCol = await collections.unsubscribes();
@@ -82,7 +86,7 @@ export async function POST(req) {
         const vars = { companyName: r.companyName || '담당자' };
         const subject = adSubject(renderTemplate(tpl.subject, vars));
         const body = renderTemplate(tpl.bodyHtml, vars);
-        const html = withComplianceFooter(body, r.email);
+        const html = withComplianceFooter(body, r.email, company);
         await sendMail({ to: r.email, subject, html });
         await recCol.updateOne(
           { _id: r._id },

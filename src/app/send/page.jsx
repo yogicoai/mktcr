@@ -12,6 +12,8 @@ export default function SendPage() {
   const [err, setErr] = useState('');
   const [history, setHistory] = useState([]);
   const [sel, setSel] = useState(new Set());
+  const [testEmail, setTestEmail] = useState('');
+  const [testMsg, setTestMsg] = useState('');
 
   const load = useCallback(async () => {
     const [r, h] = await Promise.all([
@@ -77,6 +79,19 @@ export default function SendPage() {
     } finally { setBusy(false); }
   }
 
+  async function sendTest() {
+    if (!testEmail) return;
+    setBusy(true); setTestMsg(''); setErr('');
+    try {
+      const r = await fetch('/api/send/test', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmail, category: cat }),
+      }).then((r) => r.json());
+      if (r.ok) setTestMsg(`✅ ${testEmail} 로 테스트 메일을 보냈습니다. (현재 카테고리 양식)`);
+      else setErr(r.error);
+    } finally { setBusy(false); }
+  }
+
   const ready = counts.ready || 0;
 
   return (
@@ -86,6 +101,26 @@ export default function SendPage() {
         건별로 선택해 <strong>발송</strong>하거나 <strong>발송리스트 취소</strong>(→1차 검토로 되돌리기)할 수 있습니다.
         (광고) 표기·수신거부·야간(21~08시) 차단이 적용됩니다.
       </p>
+
+      {/* 테스트 메일 */}
+      <div className="card" style={{ marginBottom: 16, borderColor: 'var(--accent-2)' }}>
+        <div style={{ fontWeight: 700, marginBottom: 8 }}>🧪 테스트 메일 전송</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="내 이메일 주소 입력 (예: me@yogibo.co.kr)"
+            style={{ flex: 1, minWidth: 240, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--panel-2)', color: 'var(--text)' }}
+          />
+          <button className="btn" onClick={sendTest} disabled={busy || !testEmail}>
+            {busy ? '전송 중…' : '테스트 발송'}
+          </button>
+        </div>
+        <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
+          현재 선택된 카테고리 양식으로, 입력한 주소에 실제와 동일한 메일((광고)·수신거부 포함)을 1통 보냅니다. 발송 이력엔 기록되지 않습니다.
+        </div>
+        {testMsg && <div style={{ color: 'var(--good)', fontSize: 13, marginTop: 8 }}>{testMsg}</div>}
+      </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         {CATEGORIES.map((c) => (

@@ -45,10 +45,10 @@ export function adSubject(subject) {
   return s.startsWith('(광고)') ? s : `(광고) ${s}`;
 }
 
-/** 본문 하단에 발신자 정보 + 수신거부 안내 자동 삽입 */
-export function withComplianceFooter(bodyHtml, email) {
+/** 본문 하단에 발신자 정보 + 수신거부 안내 자동 삽입 (company 미지정 시 env 기본값) */
+export function withComplianceFooter(bodyHtml, email, company = COMPANY) {
   const unsub = unsubscribeUrl(email);
-  const lines = [COMPANY.name, COMPANY.addr, COMPANY.tel].filter(Boolean).join(' · ');
+  const lines = [company.name, company.addr, company.tel].filter(Boolean).join(' · ');
   const footer = `
 <hr style="margin:32px 0 16px;border:none;border-top:1px solid #e5e5e5" />
 <div style="font-size:12px;color:#888;line-height:1.6">
