@@ -25,6 +25,9 @@ export async function GET(req) {
       const v = searchParams.get(key);
       if (v) q[key] = v;
     }
+    const stage1 = searchParams.get('stage1'); // 'true'=1차 통과, 'false'=미통과
+    if (stage1 === 'true') q.stage1 = true;
+    else if (stage1 === 'false') q.stage1 = { $ne: true };
     const limit = Math.min(Number(searchParams.get('limit')) || 100, 500);
     const leads = await collections.leads();
     const items = await leads.find(q).sort({ createdAt: -1 }).limit(limit).toArray();

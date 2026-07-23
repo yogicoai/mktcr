@@ -8,8 +8,7 @@ const NAV = [
   {
     group: '파이프라인',
     items: [
-      { href: '/review', label: '🧪 1차 검토 (AI)' },
-      { href: '/review2', label: '🧑‍💼 2차 마케터 검토' },
+      { href: '/review', label: '🧪 검토·승인' },
       { href: '/send', label: '✉️ 발송 리스트' },
       { href: '/schedule', label: '⏰ 예약 발송' },
     ],
