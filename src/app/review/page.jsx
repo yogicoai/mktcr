@@ -9,6 +9,7 @@ export default function ReviewPage() {
   const [cat, setCat] = useState(CATEGORIES[0].key);
   const [aiFilter, setAiFilter] = useState('valid'); // pending|valid|invalid|all
   const [leads, setLeads] = useState([]);
+  const [counts, setCounts] = useState(null);
   const [sel, setSel] = useState(new Set());
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
@@ -20,6 +21,7 @@ export default function ReviewPage() {
     const r = await fetch(`/api/leads?${q}`).then((r) => r.json());
     if (r.ok) {
       setLeads(r.items);
+      setCounts(r.counts);
       setSel(new Set());
     } else setErr(r.error);
   }, [cat, aiFilter]);
@@ -90,6 +92,18 @@ export default function ReviewPage() {
         ))}
       </div>
 
+      {/* 카테고리별 검토 진행 현황 */}
+      {counts && (
+        <div className="cards" style={{ marginBottom: 16 }}>
+          <Stat label="수집 전체" v={counts.total} />
+          <Stat label="AI 적합" v={counts.aiValid} tone="good" />
+          <Stat label="검토 대기 (적합·미승인)" v={counts.reviewPending} tone="warn" />
+          <Stat label="승인 완료" v={counts.approved} tone="accent" />
+          <Stat label="반려" v={counts.rejected} tone="bad" />
+          <Stat label="AI 미검증" v={counts.aiPending} />
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
         <button className="btn" onClick={runAI} disabled={!!busy}>
           {busy === 'ai' ? 'AI 검증 중…' : 'AI 1차 검증 실행 (미검증 50건)'}
@@ -145,6 +159,16 @@ export default function ReviewPage() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+const TONE = { good: 'var(--good)', warn: 'var(--warn)', accent: 'var(--accent)', bad: 'var(--bad)' };
+function Stat({ label, v, tone }) {
+  return (
+    <div className="card" style={{ padding: 14 }}>
+      <div style={{ fontSize: 24, fontWeight: 800, color: TONE[tone] || 'var(--text)' }}>{v ?? 0}</div>
+      <div className="kpi-label">{label}</div>
     </div>
   );
 }
