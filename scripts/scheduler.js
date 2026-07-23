@@ -35,7 +35,7 @@ async function tick(col) {
     try {
       const r = await fetch(APP + '/api/send', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: s.category, force: s.force, limit: 200 }),
+        body: JSON.stringify({ category: s.category, force: s.force, limit: 200, ids: s.ids || [] }),
       }).then((x) => x.json());
       const upd = { lastRunAt: new Date(), lastResult: r };
       if (s.type === 'once') { upd.done = true; upd.enabled = false; }

@@ -17,6 +17,8 @@ export default function SendPage() {
   const [useAd, setUseAd] = useState(true);
   const [schedules, setSchedules] = useState([]);
   const [sform, setSform] = useState({ label: '', type: 'once', runAtKst: '', timeHM: '09:00', weekdays: [1, 2, 3, 4, 5], force: false });
+  const [schedTarget, setSchedTarget] = useState('all'); // all | selected
+  const [memoSaved, setMemoSaved] = useState('');
 
   const load = useCallback(async () => {
     const [r, h, sc] = await Promise.all([
@@ -48,10 +50,18 @@ export default function SendPage() {
 
   async function createSchedule() {
     setErr(''); setMsg('');
-    const body = { ...sform, category: cat };
+    const ids = schedTarget === 'selected' ? [...sel] : [];
+    if (schedTarget === 'selected' && !ids.length) { setErr('선택 업체 예약은 목록에서 먼저 체크하세요.'); return; }
+    const body = { ...sform, category: cat, ids };
     const r = await fetch('/api/schedules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
     if (r.ok) { setMsg('예약이 등록되었습니다.'); setSform({ ...sform, label: '' }); load(); }
     else setErr(r.error);
+  }
+
+  async function saveMemo(id, memo) {
+    await fetch('/api/recipients', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, memo }) });
+    setMemoSaved(id);
+    setTimeout(() => setMemoSaved(''), 1200);
   }
   async function toggleSchedule(id, enabled) {
     await fetch('/api/schedules', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, enabled }) });
@@ -208,7 +218,7 @@ export default function SendPage() {
               <th style={{ width: 32 }}>
                 <input type="checkbox" checked={readyItems.length > 0 && sel.size === readyItems.length} onChange={toggleAll} />
               </th>
-              <th>업체</th><th>이메일</th><th style={{ width: 90 }}>상태</th><th style={{ width: 150 }}>발송시각</th>
+              <th>업체</th><th>이메일</th><th style={{ width: 80 }}>상태</th><th style={{ width: 130 }}>발송시각</th><th style={{ width: 220 }}>관리 메모</th>
             </tr>
           </thead>
           <tbody>
@@ -223,9 +233,18 @@ export default function SendPage() {
                 <td>{r.email}</td>
                 <td><span className={`badge ${r.sendStatus}`}>{sendLabel(r.sendStatus)}</span></td>
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{r.sentAt ? new Date(r.sentAt).toLocaleString('ko-KR') : '-'}</td>
+                <td>
+                  <input
+                    defaultValue={r.memo || ''}
+                    onBlur={(e) => { if ((e.target.value || '') !== (r.memo || '')) saveMemo(r._id, e.target.value); }}
+                    placeholder="메모 입력…"
+                    style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--panel-2)', color: 'var(--text)', fontSize: 12 }}
+                  />
+                  {memoSaved === r._id && <span style={{ color: 'var(--good)', fontSize: 11 }}>저장됨</span>}
+                </td>
               </tr>
             ))}
-            {items.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--muted)' }}>발송 리스트가 비어있습니다. 1차 검토에서 승인하세요.</td></tr>}
+            {items.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--muted)' }}>발송 리스트가 비어있습니다. 1차 검토에서 승인하세요.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -244,6 +263,13 @@ export default function SendPage() {
               <option value="once">1회 예약</option>
               <option value="daily">매일</option>
               <option value="weekly">매주</option>
+            </select>
+          </label>
+          <label>
+            <div className="kpi-label" style={{ marginBottom: 4 }}>발송 대상</div>
+            <select value={schedTarget} onChange={(e) => setSchedTarget(e.target.value)} style={sInp}>
+              <option value="all">발송 대기 전체</option>
+              <option value="selected">선택 업체만 ({sel.size})</option>
             </select>
           </label>
           {sform.type === 'once' ? (
@@ -278,7 +304,8 @@ export default function SendPage() {
           야간(21~08시)에도 발송 (야간차단 무시)
         </label>
         <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
-          현재 카테고리(<b>{CATEGORIES.find((c) => c.key === cat)?.label}</b>)의 <b>발송 대기 전체</b>가 지정 시각에 자동 발송됩니다. (예약 실행에는 스케줄러 <code>npm run scheduler</code>가 떠 있어야 함)
+          현재 카테고리(<b>{CATEGORIES.find((c) => c.key === cat)?.label}</b>) · 대상 {schedTarget === 'selected' ? <b>선택 {sel.size}건</b> : <b>발송 대기 전체</b>}가 지정 시각에 자동 발송됩니다.
+          {schedTarget === 'selected' && ' (위 목록에서 체크한 업체 기준)'} 예약 실행에는 스케줄러 <code>npm run scheduler</code>가 떠 있어야 합니다.
         </div>
       </div>
 
@@ -287,7 +314,7 @@ export default function SendPage() {
         <div className="card" style={{ marginTop: 12 }}>
           <table>
             <thead>
-              <tr><th>이름</th><th>카테고리</th><th>유형</th><th>시각</th><th>상태</th><th>마지막 실행</th><th style={{ width: 120 }}></th></tr>
+              <tr><th>이름</th><th>카테고리</th><th>유형</th><th>대상</th><th>시각</th><th>상태</th><th>마지막 실행</th><th style={{ width: 120 }}></th></tr>
             </thead>
             <tbody>
               {schedules.map((s) => (
@@ -295,6 +322,7 @@ export default function SendPage() {
                   <td>{s.label || '-'}</td>
                   <td>{CATEGORIES.find((c) => c.key === s.category)?.label || s.category}</td>
                   <td>{{ once: '1회', daily: '매일', weekly: '매주' }[s.type]}{s.type === 'weekly' ? ` (${s.weekdays.map((i) => '일월화수목금토'[i]).join('')})` : ''}</td>
+                  <td>{s.ids && s.ids.length ? `선택 ${s.ids.length}건` : '대기 전체'}</td>
                   <td>{s.type === 'once' ? (s.runAtKst || '').replace('T', ' ') : s.timeHM}{s.force ? ' ⚡' : ''}</td>
                   <td><span className={`badge ${s.done ? 'sent' : s.enabled ? 'ready' : 'unsubscribed'}`}>{s.done ? '완료' : s.enabled ? '활성' : '중지'}</span></td>
                   <td style={{ color: 'var(--muted)', fontSize: 12 }}>

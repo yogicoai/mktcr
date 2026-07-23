@@ -34,6 +34,8 @@ export async function POST(req) {
       category: b.category,
       type: b.type,
       force: Boolean(b.force),
+      ids: Array.isArray(b.ids) ? b.ids.map(String) : [], // 비우면 대기 전체, 채우면 선택 업체만
+      targetCount: Array.isArray(b.ids) ? b.ids.length : 0,
       runAtKst: b.type === 'once' ? String(b.runAtKst) : null,
       timeHM: b.type !== 'once' ? String(b.timeHM) : null,
       weekdays: b.type === 'weekly' ? b.weekdays.map(Number) : [],

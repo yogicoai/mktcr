@@ -1,7 +1,21 @@
 import { NextResponse } from 'next/server';
+import { ObjectId } from 'mongodb';
 import { collections } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
+
+/** 관리 메모 저장. body: { id, memo } */
+export async function PATCH(req) {
+  try {
+    const { id, memo } = await req.json();
+    if (!id) throw new Error('id 필요');
+    const recCol = await collections.recipients();
+    await recCol.updateOne({ _id: new ObjectId(id) }, { $set: { memo: String(memo ?? ''), memoAt: new Date() } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: String(e?.message || e) }, { status: 400 });
+  }
+}
 
 export async function GET(req) {
   try {
