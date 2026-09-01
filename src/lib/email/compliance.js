@@ -42,7 +42,7 @@ export function verifyUnsubscribe(e, t) {
 // 모든 메일 상단 필수 로고
 export const LOGO_URL = 'https://yogibo.openhost.cafe24.com/web/img/icon/logo3_on.png';
 export function logoHeader() {
-  return `<div style="text-align:center;padding:8px 0 16px;margin-bottom:16px;border-bottom:1px solid #eee">
+  return `<div style="text-align:left;padding:8px 0 16px;margin-bottom:16px;border-bottom:1px solid #eee">
   <img src="${LOGO_URL}" alt="요기보 Yogibo" style="max-width:170px;height:auto;display:inline-block" />
 </div>`;
 }
