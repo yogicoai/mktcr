@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CATEGORIES } from '@/lib/categories';
 import { aiLabel } from '@/lib/labels';
+import MemoCell from '@/components/MemoCell';
 
 const AI_FILTER_LABELS = { pending: '검증 대기', valid: '적합', invalid: '부적합', all: '전체' };
 
@@ -130,9 +131,7 @@ export default function ReviewPage() {
                 <td>{l.aiScore ?? '-'}</td>
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{l.aiReason || '-'}</td>
                 <td>
-                  <input defaultValue={l.memo || ''} onBlur={(e) => { if ((e.target.value || '') !== (l.memo || '')) saveMemo(l._id, e.target.value); }} placeholder="메모…"
-                    style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--panel-2)', color: 'var(--text)', fontSize: 12 }} />
-                  {memoSaved === l._id && <span style={{ color: 'var(--good)', fontSize: 11 }}>저장됨</span>}
+                  <MemoCell value={l.memo} onSave={(v) => saveMemo(l._id, v)} saved={memoSaved === l._id} />
                 </td>
               </tr>
             ))}

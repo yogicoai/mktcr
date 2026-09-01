@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CATEGORIES } from '@/lib/categories';
 import { sendLabel } from '@/lib/labels';
+import MemoCell from '@/components/MemoCell';
 
 const KST_TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
@@ -229,13 +230,7 @@ export default function SendPage() {
                 <td><span className={`badge ${r.sendStatus}`}>{sendLabel(r.sendStatus)}</span></td>
                 <td style={{ color: 'var(--muted)', fontSize: 12 }}>{r.sentAt ? new Date(r.sentAt).toLocaleString('ko-KR') : '-'}</td>
                 <td>
-                  <input
-                    defaultValue={r.memo || ''}
-                    onBlur={(e) => { if ((e.target.value || '') !== (r.memo || '')) saveMemo(r._id, e.target.value); }}
-                    placeholder="메모 입력…"
-                    style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--panel-2)', color: 'var(--text)', fontSize: 12 }}
-                  />
-                  {memoSaved === r._id && <span style={{ color: 'var(--good)', fontSize: 11 }}>저장됨</span>}
+                  <MemoCell value={r.memo} onSave={(v) => saveMemo(r._id, v)} saved={memoSaved === r._id} />
                 </td>
               </tr>
             ))}
