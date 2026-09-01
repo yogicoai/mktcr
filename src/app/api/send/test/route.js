@@ -3,6 +3,7 @@ import { getTemplate } from '@/lib/email/templates';
 import { sendMail } from '@/lib/email/smtp';
 import { getSettings } from '@/lib/settings';
 import { adSubject, withComplianceFooter, renderTemplate, logoHeader } from '@/lib/email/compliance';
+import { linkifyHtml } from '@/lib/linkify';
 import { CATEGORY_KEYS } from '@/lib/categories';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +26,7 @@ export async function POST(req) {
 
     const vars = { companyName: '테스트 수신자' };
     const subject = '[테스트] ' + adSubject(renderTemplate(tpl.subject, vars), s.useAdPrefix !== false);
-    const body = renderTemplate(tpl.bodyHtml, vars);
+    const body = linkifyHtml(renderTemplate(tpl.bodyHtml, vars));
     const html = withComplianceFooter(logoHeader() + body, to, company);
 
     const messageId = await sendMail({ to, subject, html });

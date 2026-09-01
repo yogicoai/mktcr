@@ -4,6 +4,7 @@ import { collections } from '@/lib/db';
 import { getTemplate } from '@/lib/email/templates';
 import { sendMail } from '@/lib/email/smtp';
 import { getSettings } from '@/lib/settings';
+import { linkifyHtml } from '@/lib/linkify';
 import {
   adSubject,
   withComplianceFooter,
@@ -86,7 +87,7 @@ export async function POST(req) {
       try {
         const vars = { companyName: r.companyName || '담당자' };
         const subject = adSubject(renderTemplate(tpl.subject, vars), settings.useAdPrefix !== false);
-        const body = renderTemplate(tpl.bodyHtml, vars);
+        const body = linkifyHtml(renderTemplate(tpl.bodyHtml, vars));
         const html = withComplianceFooter(logoHeader() + body, r.email, company);
         await sendMail({ to: r.email, subject, html });
         await recCol.updateOne(

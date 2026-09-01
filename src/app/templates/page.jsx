@@ -36,6 +36,25 @@ export default function TemplatesPage() {
     document.execCommand(command, false, null);
   }
 
+  // 선택 텍스트를 링크로 (드래그 후 클릭)
+  function makeLink() {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) { alert('링크로 만들 텍스트를 먼저 드래그해서 선택하세요.'); return; }
+    const url = window.prompt('연결할 주소(URL)를 입력하세요', 'https://');
+    if (!url) return;
+    editorRef.current?.focus();
+    document.execCommand('createLink', false, url);
+    // 새 탭 + 색상 적용
+    editorRef.current?.querySelectorAll('a').forEach((a) => {
+      a.setAttribute('target', '_blank');
+      a.style.color = '#5b8cff';
+    });
+  }
+  function unlink() {
+    editorRef.current?.focus();
+    document.execCommand('unlink', false, null);
+  }
+
   async function save() {
     setMsg('');
     setErr('');
@@ -83,6 +102,8 @@ export default function TemplatesPage() {
         <ToolBtn onClick={() => cmd('insertUnorderedList')}>• 목록</ToolBtn>
         <ToolBtn onClick={() => cmd('justifyLeft')}>좌</ToolBtn>
         <ToolBtn onClick={() => cmd('justifyCenter')}>중앙</ToolBtn>
+        <ToolBtn onClick={makeLink}>🔗 링크</ToolBtn>
+        <ToolBtn onClick={unlink}>링크해제</ToolBtn>
         <ToolBtn onClick={() => cmd('removeFormat')}>서식해제</ToolBtn>
       </div>
 

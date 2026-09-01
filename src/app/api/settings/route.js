@@ -19,7 +19,8 @@ export async function GET() {
         companyAddr: s.companyAddr,
         companyTel: s.companyTel,
         useAdPrefix: s.useAdPrefix !== false,
-        // 보안: 값 대신 설정 여부만
+        smtpUser: s.smtpUser || '', // 아이디는 표시(비번만 숨김)
+        // 보안: 비번은 값 대신 설정 여부만
         hasUser: Boolean(s.smtpUser),
         hasPass: Boolean(s.smtpPass),
       },

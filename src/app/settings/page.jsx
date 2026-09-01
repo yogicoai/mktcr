@@ -11,6 +11,7 @@ export default function SettingsPage() {
   });
   const [hasUser, setHasUser] = useState(false);
   const [hasPass, setHasPass] = useState(false);
+  const [pwEdit, setPwEdit] = useState(false);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,7 +26,7 @@ export default function SettingsPage() {
           mailFromName: s.mailFromName || '', mailFromAddress: s.mailFromAddress || '',
           companyName: s.companyName || '', companyAddr: s.companyAddr || '', companyTel: s.companyTel || '',
           useAdPrefix: s.useAdPrefix !== false,
-          smtpUser: '', smtpPass: '',
+          smtpUser: s.smtpUser || '', smtpPass: '',
         }));
         setHasUser(s.hasUser); setHasPass(s.hasPass);
       } else setErr(r.error);
@@ -48,14 +49,15 @@ export default function SettingsPage() {
       setMsg('저장했습니다.');
       if (f.smtpUser) setHasUser(true);
       if (f.smtpPass) setHasPass(true);
-      setF({ ...f, smtpUser: '', smtpPass: '' });
+      setPwEdit(false);
+      setF({ ...f, smtpPass: '' }); // 아이디는 유지 표시, 비번만 초기화
     } else setErr(r.error);
   }
 
   return (
     <div style={{ maxWidth: 680 }}>
       <h1 className="page-title">발송 설정</h1>
-      <p className="page-sub">메일 발송에 필요한 정보를 여기서 관리합니다(.env 수정 불필요). 아이디·비밀번호는 보안상 화면에 표시되지 않으며, 새로 입력할 때만 갱신됩니다.</p>
+      <p className="page-sub">메일 발송에 필요한 정보를 여기서 관리합니다(.env 수정 불필요). <b>현재 저장된 아이디는 표시</b>되고, 비밀번호는 보안상 <b>••••</b>로만 보이며 클릭해서 변경할 수 있습니다.</p>
 
       {err && <div className="card" style={{ borderColor: 'var(--bad)', color: 'var(--bad)', marginBottom: 12 }}>{err}</div>}
       {msg && <div className="card" style={{ borderColor: 'var(--good)', color: 'var(--good)', marginBottom: 12 }}>{msg}</div>}
@@ -65,11 +67,22 @@ export default function SettingsPage() {
           메일 서버는 <b style={{ color: 'var(--text)' }}>{f.smtpHost}</b> 로 자동 설정됩니다. <b style={{ color: 'var(--text)' }}>아이디·비밀번호만</b> 입력하세요.
           발신 주소는 입력한 아이디로 자동 발송됩니다.
         </div>
-        <Field label={`아이디(계정)  ${hasUser ? '· 현재: 설정됨 ✅' : '· 미설정'}`}>
-          <input style={inp} value={f.smtpUser} onChange={set('smtpUser')} placeholder={hasUser ? '변경 시에만 입력' : '메일 계정 아이디'} autoComplete="off" />
+        <Field label={`아이디(계정)  ${hasUser ? '· 현재 로그인 계정 ✅' : '· 미설정'}`}>
+          <input style={inp} value={f.smtpUser} onChange={set('smtpUser')} placeholder="메일 계정 아이디 (예: hjs@yogico.kr)" autoComplete="off" />
         </Field>
-        <Field label={`비밀번호  ${hasPass ? '· 현재: 설정됨 ✅' : '· 미설정'}`}>
-          <input style={inp} type="password" value={f.smtpPass} onChange={set('smtpPass')} placeholder={hasPass ? '••••••  (변경 시에만 입력)' : '메일 계정 비밀번호'} autoComplete="new-password" />
+        <Field label={`비밀번호  ${hasPass ? '· 현재 로그인됨 🔒' : '· 미설정'}`}>
+          {hasPass && !pwEdit ? (
+            <input style={{ ...inp, cursor: 'pointer' }} type="text" readOnly value="••••••••••"
+              onFocus={() => setPwEdit(true)} onClick={() => setPwEdit(true)} title="클릭해서 비밀번호 변경" />
+          ) : (
+            <input style={inp} type="password" value={f.smtpPass} onChange={set('smtpPass')}
+              placeholder="새 비밀번호 입력" autoComplete="new-password" autoFocus={pwEdit} />
+          )}
+          {hasPass && (
+            <div style={{ color: 'var(--muted)', fontSize: 11, marginTop: 4 }}>
+              {pwEdit ? '새 비밀번호를 입력하세요. (빈칸으로 저장하면 기존 비번 유지)' : '••••로 표시됨 — 변경하려면 클릭'}
+            </div>
+          )}
         </Field>
       </Section>
 
