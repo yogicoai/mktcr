@@ -9,6 +9,7 @@ import {
   withComplianceFooter,
   renderTemplate,
   isNightBlocked,
+  logoHeader,
 } from '@/lib/email/compliance';
 
 export const dynamic = 'force-dynamic';
@@ -86,7 +87,7 @@ export async function POST(req) {
         const vars = { companyName: r.companyName || '담당자' };
         const subject = adSubject(renderTemplate(tpl.subject, vars), settings.useAdPrefix !== false);
         const body = renderTemplate(tpl.bodyHtml, vars);
-        const html = withComplianceFooter(body, r.email, company);
+        const html = withComplianceFooter(logoHeader() + body, r.email, company);
         await sendMail({ to: r.email, subject, html });
         await recCol.updateOne(
           { _id: r._id },
